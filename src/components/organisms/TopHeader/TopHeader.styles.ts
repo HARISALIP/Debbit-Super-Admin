@@ -1,0 +1,67 @@
+import React from 'react'
+
+export const topHeaderStyles: Record<string, React.CSSProperties> = {
+  logoContainer: {
+    display: 'flex',
+    alignItems: 'center',
+  },
+  searchShortcut: {
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border)',
+    borderRadius: '6px',
+    padding: '2px 8px',
+    fontSize: '11px',
+    fontWeight: 600,
+    color: 'var(--text-muted)',
+  },
+  controlsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  themeBtn: {
+    borderRadius: '50%',
+    width: '36px',
+    height: '36px',
+    padding: 0,
+    justifyContent: 'center',
+  },
+  roleWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '11px',
+    fontWeight: 600,
+    color: 'var(--text-muted)',
+  },
+  roleBadge: {
+    background: 'var(--text-primary)',
+    color: 'var(--bg-base)',
+    padding: '6px 14px',
+    borderRadius: '99px',
+    fontWeight: 700,
+    fontSize: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    cursor: 'pointer',
+  },
+  userProfile: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  userAvatar: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    background: 'var(--purple-bg)',
+    color: 'var(--purple-main)',
+    border: '1px solid var(--purple-main)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '13px',
+    fontWeight: 700,
+  },
+}

@@ -1,0 +1,67 @@
+import React from 'react'
+
+export const sidebarStyles: Record<string, React.CSSProperties> = {
+  sidebar: {
+    width: 'var(--sidebar-w)',
+    background: 'var(--sidebar-bg)',
+    borderRight: '1px solid var(--border)',
+    display: 'flex',
+    flexDirection: 'column',
+    flexShrink: 0,
+    height: '100%',
+    overflow: 'hidden',
+  },
+  navArea: {
+    flex: 1,
+    padding: '24px 14px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    overflowY: 'auto',
+  },
+  sectionLabel: {
+    fontSize: '10px',
+    fontWeight: 800,
+    letterSpacing: '1.2px',
+    textTransform: 'uppercase',
+    color: 'var(--text-muted)',
+    padding: '4px 10px 10px',
+  },
+  link: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+    padding: '12px 14px',
+    borderRadius: 'var(--r-md)',
+    textDecoration: 'none',
+    transition: 'all 0.15s',
+    cursor: 'pointer',
+  },
+  linkIcon: {
+    fontSize: '18px',
+    width: '24px',
+    textAlign: 'center',
+  },
+  footer: {
+    padding: '16px',
+    borderTop: '1px solid var(--border)',
+  },
+  promoCard: {
+    background: 'linear-gradient(135deg, #3b0764 0%, #6b21a8 100%)',
+    borderRadius: 'var(--r-md)',
+    padding: '16px',
+    color: '#ffffff',
+    boxShadow: '0 4px 14px rgba(107, 33, 168, 0.3)',
+  },
+  activePill: {
+    position: 'absolute',
+    left: '-14px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: '6px',
+    height: '24px',
+    borderRadius: '0 4px 4px 0',
+    background: 'var(--purple-main)',
+    boxShadow: 'var(--shadow-glow)',
+  },
+}

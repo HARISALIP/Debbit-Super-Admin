@@ -2,16 +2,19 @@ import React, { Component, ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import { isMissingConfig, envUrl, envAnonKey } from './lib/supabase'
-import TopHeader from './components/TopHeader'
-import Sidebar from './components/Sidebar'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Businesses from './pages/Businesses'
-import BusinessDetail from './pages/BusinessDetail'
-import Users from './pages/Users'
-import Telemetry from './pages/Telemetry'
-import SyncHealth from './pages/SyncHealth'
-import Billing from './pages/Billing'
+
+// Atomic Templates
+import MainLayout from './components/templates/MainLayout/MainLayout'
+
+// Pages
+import Login from './pages/Login/Login'
+import Dashboard from './pages/Dashboard/Dashboard'
+import Businesses from './pages/Businesses/Businesses'
+import BusinessDetail from './pages/BusinessDetail/BusinessDetail'
+import Users from './pages/Users/Users'
+import Telemetry from './pages/Telemetry/Telemetry'
+import SyncHealth from './pages/SyncHealth/SyncHealth'
+import Billing from './pages/Billing/Billing'
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 
@@ -66,7 +69,7 @@ VITE_SUPABASE_ANON_KEY=${currentKey}`}
   )
 }
 
-// ─── Protected Layout (Strict Authentication & Authorization) ─────────────────
+// ─── Protected Layout (Atomic MainLayout Wrapper) ─────────────────────────────
 
 function ProtectedLayout() {
   const { session, isSuperAdmin, checking } = useAuth()
@@ -85,24 +88,18 @@ function ProtectedLayout() {
   }
 
   return (
-    <div className="app-shell">
-      <TopHeader />
-      <div className="app-main">
-        <Sidebar />
-        <main className="main-content">
-          <Routes>
-            <Route path="/"               element={<Dashboard />} />
-            <Route path="/businesses"     element={<Businesses />} />
-            <Route path="/businesses/:id" element={<BusinessDetail />} />
-            <Route path="/users"          element={<Users />} />
-            <Route path="/telemetry"      element={<Telemetry />} />
-            <Route path="/sync"           element={<SyncHealth />} />
-            <Route path="/billing"        element={<Billing />} />
-            <Route path="*"               element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-      </div>
-    </div>
+    <MainLayout>
+      <Routes>
+        <Route path="/"               element={<Dashboard />} />
+        <Route path="/businesses"     element={<Businesses />} />
+        <Route path="/businesses/:id" element={<BusinessDetail />} />
+        <Route path="/users"          element={<Users />} />
+        <Route path="/telemetry"      element={<Telemetry />} />
+        <Route path="/sync"           element={<SyncHealth />} />
+        <Route path="/billing"        element={<Billing />} />
+        <Route path="*"               element={<Navigate to="/" replace />} />
+      </Routes>
+    </MainLayout>
   )
 }
 

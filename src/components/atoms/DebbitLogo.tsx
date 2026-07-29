@@ -15,7 +15,6 @@ export default function DebbitLogo({
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-      {/* Official debbit-logo.png image */}
       <img
         src="/debbit-logo.png"
         alt="debbit"

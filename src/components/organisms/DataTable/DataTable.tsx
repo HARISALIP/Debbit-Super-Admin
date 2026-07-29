@@ -1,84 +1,64 @@
-import { useState, useMemo, ReactNode } from 'react'
+import { useState, useMemo } from 'react'
+import { DataTableProps } from '../../../types'
+import { dataTableStyles } from './DataTable.styles'
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-export interface Column<T> {
-  key: keyof T | string
-  header: string
-  render?: (row: T) => ReactNode
-  sortable?: boolean
-  width?: string
-  align?: 'left' | 'center' | 'right'
-}
-
-interface DataTableProps<T extends Record<string, unknown>> {
-  title: string
-  columns: Column<T>[]
-  data: T[]
-  loading?: boolean
-  searchable?: boolean
-  searchPlaceholder?: string
-  rowKey?: (row: T) => string
-  actions?: (row: T) => ReactNode
-  pageSize?: number
-  pageSizeOptions?: number[]
-}
-
-type SortDir = 'asc' | 'desc'
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
-export default function DataTable<T extends Record<string, unknown>>({
+export default function DataTable<T extends Record<string, any>>({
   title,
+  subtitle,
   columns,
   data,
   loading = false,
-  searchable = true,
   searchPlaceholder = 'Search records…',
   rowKey,
   actions,
-  pageSize: initialPageSize = 10,
   pageSizeOptions = [5, 10, 20, 50],
+  initialPageSize = 10,
 }: DataTableProps<T>) {
   const [query, setQuery]         = useState('')
   const [sortKey, setSortKey]     = useState<string | null>(null)
-  const [sortDir, setSortDir]     = useState<SortDir>('asc')
-  const [page, setPage]           = useState(1)
+  const [sortDir, setSortDir]     = useState<'asc' | 'desc'>('asc')
+  const [currentPage, setPage]    = useState(1)
   const [pageSize, setPageSize]   = useState(initialPageSize)
 
-  // ── Filter ──
+  // 1. Search Filter
   const filtered = useMemo(() => {
     if (!query.trim()) return data
     const q = query.toLowerCase()
     return data.filter(row =>
-      Object.values(row).some(v =>
-        v !== null && v !== undefined && String(v).toLowerCase().includes(q)
+      Object.values(row).some(val =>
+        val !== null && val !== undefined && String(val).toLowerCase().includes(q)
       )
     )
   }, [data, query])
 
-  // ── Sort ──
+  // 2. Sort
   const sorted = useMemo(() => {
     if (!sortKey) return filtered
     return [...filtered].sort((a, b) => {
-      const av = a[sortKey] ?? ''
-      const bv = b[sortKey] ?? ''
-      const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true })
-      return sortDir === 'asc' ? cmp : -cmp
+      const va = a[sortKey] ?? ''
+      const vb = b[sortKey] ?? ''
+      if (va < vb) return sortDir === 'asc' ? -1 : 1
+      if (va > vb) return sortDir === 'asc' ? 1 : -1
+      return 0
     })
   }, [filtered, sortKey, sortDir])
 
-  // ── Paginate ──
+  // 3. Pagination
   const totalItems = sorted.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-  const currentPage = Math.min(page, totalPages)
-  const startIndex = (currentPage - 1) * pageSize
-  const endIndex = Math.min(startIndex + pageSize, totalItems)
-  const paginated = sorted.slice(startIndex, endIndex)
 
-  function handleSort(key: string) {
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    return sorted.slice(start, start + pageSize)
+  }, [sorted, currentPage, pageSize])
+
+  const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize
+  const endIndex   = Math.min(startIndex + pageSize, totalItems)
+
+  const handleSort = (key: string) => {
     if (sortKey === key) {
-      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+      if (sortDir === 'asc') setSortDir('desc')
+      else { setSortKey(null); setSortDir('asc') }
     } else {
       setSortKey(key)
       setSortDir('asc')
@@ -86,17 +66,17 @@ export default function DataTable<T extends Record<string, unknown>>({
     setPage(1)
   }
 
-  function handleSearch(v: string) {
-    setQuery(v)
+  const handleSearch = (val: string) => {
+    setQuery(val)
     setPage(1)
   }
 
-  function handlePageSizeChange(newSize: number) {
-    setPageSize(newSize)
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size)
     setPage(1)
   }
 
-  // Generate page range
+  // Generate Page Numbers Array
   const pageNumbers = useMemo(() => {
     const pages: (number | string)[] = []
     if (totalPages <= 7) {
@@ -105,7 +85,7 @@ export default function DataTable<T extends Record<string, unknown>>({
       pages.push(1)
       if (currentPage > 3) pages.push('…')
       const start = Math.max(2, currentPage - 1)
-      const end = Math.min(totalPages - 1, currentPage + 1)
+      const end   = Math.min(totalPages - 1, currentPage + 1)
       for (let i = start; i <= end; i++) pages.push(i)
       if (currentPage < totalPages - 2) pages.push('…')
       pages.push(totalPages)
@@ -115,16 +95,21 @@ export default function DataTable<T extends Record<string, unknown>>({
 
   return (
     <div className="table-wrap">
-      {/* Toolbar */}
+      {/* Table Header / Toolbar */}
       <div className="table-toolbar">
-        <h2>
-          {title}
-          <span className="badge badge-muted" style={{ fontWeight: 600 }}>{filtered.length}</span>
-        </h2>
-        {searchable && (
+        <div>
+          {title && <h2 style={dataTableStyles.headerText}>{title}</h2>}
+          {subtitle && (
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              {subtitle}
+            </p>
+          )}
+        </div>
+
+        {searchPlaceholder !== '' && (
           <input
-            className="table-search"
             type="text"
+            className="table-search"
             placeholder={searchPlaceholder}
             value={query}
             onChange={e => handleSearch(e.target.value)}
@@ -134,14 +119,16 @@ export default function DataTable<T extends Record<string, unknown>>({
 
       {/* Body */}
       {loading ? (
-        <div className="loading-state">
+        <div className="loading-state" style={{ padding: '40px', textAlign: 'center' }}>
           <div className="spinner" />
-          <p>Loading table data…</p>
+          <p style={{ marginTop: '12px', color: 'var(--text-secondary)' }}>Loading table data…</p>
         </div>
       ) : paginated.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">🔍</div>
-          <p>{query ? 'No matching records found for your search.' : 'No data records available.'}</p>
+        <div className="empty-state" style={{ padding: '40px', textAlign: 'center' }}>
+          <div className="empty-icon" style={{ fontSize: '32px', marginBottom: '12px' }}>🔍</div>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            {query ? 'No matching records found for your search.' : 'No data records available.'}
+          </p>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
@@ -151,12 +138,12 @@ export default function DataTable<T extends Record<string, unknown>>({
                 {columns.map(col => (
                   <th
                     key={String(col.key)}
-                    style={{ width: col.width, textAlign: col.align || 'left' }}
+                    style={{ width: col.width, textAlign: col.align || 'left', cursor: col.sortable !== false ? 'pointer' : 'default' }}
                     onClick={() => col.sortable !== false && handleSort(String(col.key))}
                   >
                     {col.header}
                     {sortKey === String(col.key) && (
-                      <span style={{ marginLeft: '6px', color: 'var(--violet-light)' }}>
+                      <span style={{ marginLeft: '6px', color: 'var(--purple-main)' }}>
                         {sortDir === 'asc' ? '↑' : '↓'}
                       </span>
                     )}
@@ -173,7 +160,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                       {col.render ? col.render(row) : String(row[String(col.key)] ?? '—')}
                     </td>
                   ))}
-                  {actions && <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{actions(row)}</td>}
+                  {actions && <td style={dataTableStyles.actionsCell}>{actions(row)}</td>}
                 </tr>
               ))}
             </tbody>
@@ -184,7 +171,7 @@ export default function DataTable<T extends Record<string, unknown>>({
       {/* Pagination Footer */}
       {totalItems > 0 && (
         <div className="pagination-bar">
-          <div className="pagination-info" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'nowrap' }}>
+          <div className="pagination-info" style={dataTableStyles.paginationInfoRow}>
             <span style={{ whiteSpace: 'nowrap' }}>
               Showing <strong>{startIndex + 1}</strong>–<strong>{endIndex}</strong> of <strong>{totalItems}</strong> entries
             </span>
@@ -192,7 +179,7 @@ export default function DataTable<T extends Record<string, unknown>>({
               <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Per page:</span>
               <select
                 className="form-select"
-                style={{ width: '70px', padding: '2px 8px', fontSize: '12px', height: '30px', display: 'inline-block' }}
+                style={dataTableStyles.pageSizeSelect}
                 value={pageSize}
                 onChange={e => handlePageSizeChange(Number(e.target.value))}
               >
@@ -203,7 +190,7 @@ export default function DataTable<T extends Record<string, unknown>>({
             </div>
           </div>
 
-          <div className="pagination-controls">
+          <div className="pagination-controls" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <button
               className="page-btn"
               disabled={currentPage <= 1}
@@ -222,9 +209,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                   {p}
                 </button>
               ) : (
-                <span key={idx} style={{ padding: '0 4px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                  …
-                </span>
+                <span key={idx} style={{ padding: '0 4px', color: 'var(--text-muted)' }}>{p}</span>
               )
             )}
 

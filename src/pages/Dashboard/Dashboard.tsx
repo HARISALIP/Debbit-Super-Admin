@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
+import StatCard from '../../components/molecules/StatCard'
+import { dashboardStyles } from './Dashboard.styles'
 
 export default function Dashboard() {
   const [filterPeriod, setFilterPeriod] = useState<'Today' | 'Week' | 'Month'>('Today')
@@ -6,20 +8,18 @@ export default function Dashboard() {
 
   return (
     <div className="fade-in">
-      {/* ── Greeting & Date Header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px' }}>
+      {/* Greeting Header */}
+      <div style={dashboardStyles.headerRow}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
-            Good afternoon, Admin
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
+          <h1 style={dashboardStyles.title}>Good afternoon, Admin</h1>
+          <p style={dashboardStyles.subtitle}>
             Tuesday, 30 June 2026 · here's what matters right now.
           </p>
         </div>
 
         {/* Filter Pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '99px', padding: '4px', display: 'flex', gap: '2px' }}>
+          <div style={dashboardStyles.filterGroup}>
             {(['Today', 'Week', 'Month'] as const).map(p => (
               <button
                 key={p}
@@ -37,7 +37,7 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '99px', padding: '4px', display: 'flex', gap: '2px' }}>
+          <div style={dashboardStyles.filterGroup}>
             {(['Pulse', 'Full'] as const).map(v => (
               <button
                 key={v}
@@ -57,7 +57,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── AI Prompt Box ("Tell debbit what happened...") ── */}
+      {/* AI Prompt Box */}
       <div className="ai-prompt-box">
         <span style={{ fontSize: '20px', color: 'var(--purple-main)' }}>✨</span>
         <input
@@ -69,16 +69,12 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* ── Today's Sales Card & Chart ── */}
+      {/* Today's Sales Card */}
       <div className="card" style={{ marginBottom: '24px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={dashboardStyles.salesHeader}>
           <div>
-            <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '1px', textTransform: 'uppercase' }}>
-              TODAY'S SALES
-            </div>
-            <div style={{ fontSize: '38px', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0', letterSpacing: '-1px' }}>
-              RM 4,820
-            </div>
+            <div style={dashboardStyles.salesLabel}>TODAY'S SALES</div>
+            <div style={dashboardStyles.salesValue}>RM 4,820</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className="badge badge-green">▲ 14%</span>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>vs last Tuesday</span>
@@ -88,7 +84,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Trend Area Chart SVG */}
+          {/* SVG Trend Chart */}
           <div style={{ width: '450px', height: '140px' }}>
             <svg viewBox="0 0 450 140" style={{ width: '100%', height: '100%' }}>
               <defs>
@@ -118,62 +114,15 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── 4-Metric Grid with Top Accent Borders ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
-        {/* Gross Profit */}
-        <div className="card card-accent-violet">
-          <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.8px' }}>
-            GROSS PROFIT
-          </div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', margin: '6px 0' }}>
-            RM 1,640
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            34% margin
-          </div>
-        </div>
-
-        {/* Money In */}
-        <div className="card card-accent-green">
-          <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.8px' }}>
-            MONEY IN
-          </div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', margin: '6px 0' }}>
-            RM 5,240
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            sales + receipts
-          </div>
-        </div>
-
-        {/* Money Out */}
-        <div className="card card-accent-red">
-          <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.8px' }}>
-            MONEY OUT
-          </div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', margin: '6px 0' }}>
-            RM 2,890
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            stock + bills + wages
-          </div>
-        </div>
-
-        {/* Cash In Hand */}
-        <div className="card card-accent-blue">
-          <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.8px' }}>
-            CASH IN HAND
-          </div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', margin: '6px 0' }}>
-            RM 8,430
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            ~52 days runway
-          </div>
-        </div>
+      {/* 4-Metric KPI Grid */}
+      <div style={dashboardStyles.kpiGrid}>
+        <StatCard title="GROSS PROFIT" value="RM 1,640" subtext="34% margin" accentColor="violet" />
+        <StatCard title="MONEY IN" value="RM 5,240" subtext="sales + receipts" accentColor="green" />
+        <StatCard title="MONEY OUT" value="RM 2,890" subtext="stock + bills + wages" accentColor="red" />
+        <StatCard title="CASH IN HAND" value="RM 8,430" subtext="~52 days runway" accentColor="blue" />
       </div>
 
-      {/* ── AI Insights ("debbit says — what needs you right now") ── */}
+      {/* AI Insights ("debbit says") */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
           <span style={{ fontSize: '16px', color: 'var(--amber)' }}>✨</span>
@@ -182,8 +131,7 @@ export default function Dashboard() {
           </h2>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-          {/* Alert 1 */}
+        <div style={dashboardStyles.insightsGrid}>
           <div className="card" style={{ borderLeft: '4px solid var(--amber)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <span style={{ fontSize: '18px' }}>⚠️</span>
@@ -194,7 +142,6 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {/* Alert 2 */}
           <div className="card" style={{ borderLeft: '4px solid var(--green)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <span style={{ fontSize: '18px' }}>📈</span>
@@ -205,7 +152,6 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {/* Alert 3 */}
           <div className="card" style={{ borderLeft: '4px solid var(--cyan)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <span style={{ fontSize: '18px' }}>💧</span>
@@ -218,7 +164,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Floating Ask AI Button (Pulse Web Spec) ── */}
+      {/* Floating Ask AI Button */}
       <button className="floating-ai-btn">
         <span>✨</span> Ask debbit
       </button>
