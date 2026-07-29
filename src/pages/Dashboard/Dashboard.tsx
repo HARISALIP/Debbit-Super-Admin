@@ -1,19 +1,133 @@
-import React, { useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { supabase } from '../../lib/supabase'
 import StatCard from '../../components/molecules/StatCard'
 import { dashboardStyles } from './Dashboard.styles'
+
+interface SalesRow {
+  sale_date: string
+  total: number
+}
+
+interface SyncSummary {
+  totalBusinesses: number
+  activeWorkstations: number
+  recentSales: number
+  openTickets: number
+}
+
+interface DashboardPayload {
+  ok?: boolean
+  summary?: SyncSummary
+  chart?: SalesRow[]
+  todayRevenue?: number
+}
+
+function fmt(n: number) {
+  return n.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 export default function Dashboard() {
   const [filterPeriod, setFilterPeriod] = useState<'Today' | 'Week' | 'Month'>('Today')
   const [viewMode, setViewMode]         = useState<'Pulse' | 'Full'>('Pulse')
+  const [salesChart, setSalesChart]     = useState<SalesRow[]>([])
+  const [summary, setSummary]           = useState<SyncSummary | null>(null)
+  const [todayRevenue, setTodayRevenue] = useState<number | null>(null)
+  const [loading, setLoading]           = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase.functions.invoke<DashboardPayload>('admin-dashboard', {
+        body: { days: 7 },
+      })
+
+      if (!error && data?.ok) {
+        setSalesChart((data.chart ?? []) as SalesRow[])
+        setTodayRevenue(typeof data.todayRevenue === 'number' ? data.todayRevenue : 0)
+        setSummary(
+          data.summary
+            ? {
+                totalBusinesses: data.summary.totalBusinesses ?? 0,
+                activeWorkstations: data.summary.activeWorkstations ?? 0,
+                recentSales: data.summary.recentSales ?? 0,
+                openTickets: data.summary.openTickets ?? 0,
+              }
+            : null
+        )
+        return
+      }
+
+      const days: string[] = []
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date()
+        d.setDate(d.getDate() - i)
+        days.push(d.toISOString().slice(0, 10))
+      }
+      const today = days[days.length - 1]
+
+      const [bizRes, wsRes, salesRes, supportRes] = await Promise.all([
+        supabase.from('businesses').select('id', { count: 'exact', head: true }),
+        supabase.from('workstation_devices').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        supabase
+          .from('sales')
+          .select('sale_date, total')
+          .eq('is_void', false)
+          .gte('sale_date', days[0])
+          .lte('sale_date', today),
+        supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('status', 'open'),
+      ])
+
+      const salesData = (salesRes.data ?? []) as SalesRow[]
+      const totals: Record<string, number> = {}
+      days.forEach(d => { totals[d] = 0 })
+      salesData.forEach(r => { totals[r.sale_date] = (totals[r.sale_date] || 0) + (r.total || 0) })
+      setSalesChart(days.map(d => ({ sale_date: d, total: totals[d] })))
+      setTodayRevenue(totals[today] ?? 0)
+
+      setSummary({
+        totalBusinesses:    bizRes.count ?? 0,
+        activeWorkstations: wsRes.count ?? 0,
+        recentSales:        salesData.reduce((s, r) => s + (r.total || 0), 0),
+        openTickets:        supportRes.count ?? 0,
+      })
+    } catch (e) {
+      console.error('Dashboard load error', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void load() }, [load])
+
+  // SVG sparkline
+  const maxSale = Math.max(...salesChart.map(r => r.total), 1)
+  const W = 450, H = 120
+  const pts = salesChart.map((r, i) => {
+    const x = (i / (salesChart.length - 1)) * W
+    const y = H - (r.total / maxSale) * (H - 20)
+    return `${x},${y}`
+  }).join(' ')
+  const areaPath = salesChart.length > 1
+    ? `M ${salesChart.map((r, i) => {
+        const x = (i / (salesChart.length - 1)) * W
+        const y = H - (r.total / maxSale) * (H - 20)
+        return `${x} ${y}`
+      }).join(' L ')} L ${W} ${H} L 0 ${H} Z`
+    : ''
+  const linePath = salesChart.length > 1
+    ? `M ${pts.split(' ').map((p, i) => (i === 0 ? p : p)).join(' L ')}`
+    : ''
 
   return (
     <div className="fade-in">
       {/* Greeting Header */}
       <div style={dashboardStyles.headerRow}>
         <div>
-          <h1 style={dashboardStyles.title}>Good afternoon, Admin</h1>
+          <h1 style={dashboardStyles.title}>
+            {loading ? 'Loading…' : `Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, Admin`}
+          </h1>
           <p style={dashboardStyles.subtitle}>
-            Tuesday, 30 June 2026 · here's what matters right now.
+            {new Date().toLocaleDateString('en', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · here&apos;s what matters right now.
           </p>
         </div>
 
@@ -73,38 +187,43 @@ export default function Dashboard() {
       <div className="card" style={{ marginBottom: '24px', position: 'relative', overflow: 'hidden' }}>
         <div style={dashboardStyles.salesHeader}>
           <div>
-            <div style={dashboardStyles.salesLabel}>TODAY'S SALES</div>
-            <div style={dashboardStyles.salesValue}>RM 4,820</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="badge badge-green">▲ 14%</span>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>vs last Tuesday</span>
+            <div style={dashboardStyles.salesLabel}>TODAY&apos;S SALES</div>
+            <div style={dashboardStyles.salesValue}>
+              {todayRevenue !== null ? `RM ${fmt(todayRevenue)}` : 'Loading…'}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-              118 sales · avg basket RM 40.85
+              {loading ? '…' : `Last 7 days total: RM ${fmt(summary?.recentSales ?? 0)}`}
             </div>
           </div>
 
-          {/* SVG Trend Chart */}
+          {/* SVG Sparkline */}
           <div style={{ width: '450px', height: '140px' }}>
-            <svg viewBox="0 0 450 140" style={{ width: '100%', height: '100%' }}>
+            <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: '100%' }}>
               <defs>
                 <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--purple-main)" stopOpacity="0.3" />
                   <stop offset="100%" stopColor="var(--purple-main)" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
-              <path
-                d="M 0 110 Q 75 90, 150 60 T 300 40 T 450 20 L 450 140 L 0 140 Z"
-                fill="url(#salesGrad)"
-              />
-              <path
-                d="M 0 110 Q 75 90, 150 60 T 300 40 T 450 20"
-                fill="none"
-                stroke="var(--purple-main)"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
-              <circle cx="450" cy="20" r="5" fill="var(--purple-main)" />
+              {areaPath && <path d={areaPath} fill="url(#salesGrad)" />}
+              {linePath && (
+                <path
+                  d={linePath}
+                  fill="none"
+                  stroke="var(--purple-main)"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+              {salesChart.length > 0 && (
+                <circle
+                  cx={(salesChart.length - 1) / (salesChart.length - 1) * W}
+                  cy={H - (salesChart[salesChart.length - 1].total / maxSale) * (H - 20)}
+                  r="5"
+                  fill="var(--purple-main)"
+                />
+              )}
             </svg>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
               <span>7 days ago</span>
@@ -116,57 +235,85 @@ export default function Dashboard() {
 
       {/* 4-Metric KPI Grid */}
       <div style={dashboardStyles.kpiGrid}>
-        <StatCard title="GROSS PROFIT" value="RM 1,640" subtext="34% margin" accentColor="violet" />
-        <StatCard title="MONEY IN" value="RM 5,240" subtext="sales + receipts" accentColor="green" />
-        <StatCard title="MONEY OUT" value="RM 2,890" subtext="stock + bills + wages" accentColor="red" />
-        <StatCard title="CASH IN HAND" value="RM 8,430" subtext="~52 days runway" accentColor="blue" />
+        <StatCard
+          title="REGISTERED BUSINESSES"
+          value={loading ? '…' : String(summary?.totalBusinesses ?? 0)}
+          subtext="across all tenants"
+          accentColor="violet"
+        />
+        <StatCard
+          title="ACTIVE WORKSTATIONS"
+          value={loading ? '…' : String(summary?.activeWorkstations ?? 0)}
+          subtext="POS terminals online"
+          accentColor="green"
+        />
+        <StatCard
+          title="7-DAY REVENUE"
+          value={loading ? '…' : `RM ${fmt(summary?.recentSales ?? 0)}`}
+          subtext="across all businesses"
+          accentColor="blue"
+        />
+        <StatCard
+          title="OPEN SUPPORT TICKETS"
+          value={loading ? '…' : String(summary?.openTickets ?? 0)}
+          subtext="pending resolution"
+          accentColor={summary?.openTickets ? 'red' : 'green'}
+        />
       </div>
 
-      {/* AI Insights ("debbit says") */}
+      {/* Platform Status Section */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
           <span style={{ fontSize: '16px', color: 'var(--amber)' }}>✨</span>
           <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            debbit says <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>— what needs you right now</span>
+            debbit says <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>— platform health overview</span>
           </h2>
         </div>
 
         <div style={dashboardStyles.insightsGrid}>
-          <div className="card" style={{ borderLeft: '4px solid var(--amber)' }}>
+          <div className="card" style={{ borderLeft: '4px solid var(--purple-main)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '18px' }}>⚠️</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Reorder Cooking Oil</span>
+              <span style={{ fontSize: '18px' }}>🏢</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {summary?.totalBusinesses ?? '—'} businesses registered
+              </span>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              9 left and you sell ~6 a day — you'll run dry by Thursday.
+              Total merchant organizations onboarded across all regions.
             </p>
           </div>
 
           <div className="card" style={{ borderLeft: '4px solid var(--green)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '18px' }}>📈</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Best Tuesday this month</span>
+              <span style={{ fontSize: '18px' }}>🖥️</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {summary?.activeWorkstations ?? '—'} active POS terminals
+              </span>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              RM 4,820 today — 14% above last Tuesday. Cold drinks leading.
+              Workstation devices currently registered and active.
             </p>
           </div>
 
-          <div className="card" style={{ borderLeft: '4px solid var(--cyan)' }}>
+          <div className="card" style={{ borderLeft: (summary?.openTickets ?? 0) > 0 ? '4px solid var(--amber)' : '4px solid var(--cyan)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '18px' }}>💧</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Cash runway is healthy</span>
+              <span style={{ fontSize: '18px' }}>{(summary?.openTickets ?? 0) > 0 ? '🎫' : '✅'}</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {summary?.openTickets ?? '—'} open support tickets
+              </span>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              52 days of cover at current spend. Nothing to worry about.
+              {(summary?.openTickets ?? 0) > 0
+                ? 'Some tickets need attention. Review in support tab.'
+                : 'All support tickets resolved — platform is healthy.'}
             </p>
           </div>
         </div>
       </div>
 
       {/* Floating Ask AI Button */}
-      <button className="floating-ai-btn">
-        <span>✨</span> Ask debbit
+      <button className="floating-ai-btn" onClick={() => void load()}>
+        <span>🔄</span> Refresh data
       </button>
     </div>
   )

@@ -6,29 +6,29 @@ import StatusBadge from '../../components/atoms/StatusBadge'
 import { BusinessRow, ColumnDef } from '../../types'
 import { businessesStyles } from './Businesses.styles'
 
-const MOCK_DATA: BusinessRow[] = [
-  { id: 'b1', name: 'Metro Mart KL',         legal_name: 'Metro Mart Sdn Bhd',       country: 'MY', currency: 'MYR', business_type: 'RETAIL',        created_at: '2026-07-29T10:00:00Z', is_active: true  },
-  { id: 'b2', name: 'Spice Garden Bistro',   legal_name: 'Spice Garden Pte Ltd',     country: 'IN', currency: 'INR', business_type: 'FOOD_BEVERAGE', created_at: '2026-07-28T14:30:00Z', is_active: true  },
-  { id: 'b3', name: 'Al Madina Wholesale',   legal_name: 'Al Madina Trading LLC',    country: 'AE', currency: 'AED', business_type: 'WHOLESALE',     created_at: '2026-07-27T09:15:00Z', is_active: false },
-  { id: 'b4', name: 'Borneo Tech Services',  legal_name: 'Borneo Services Enterprise', country: 'MY', currency: 'MYR', business_type: 'SERVICE',       created_at: '2026-07-26T16:00:00Z', is_active: true  },
-]
-
 export default function Businesses() {
   const [data, setData]           = useState<BusinessRow[]>([])
   const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string | null>(null)
   const [actionMsg, setActionMsg] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
-      const { data: rows, error } = await supabase
+      const { data: rows, error: err } = await supabase
         .from('businesses')
         .select('*')
         .order('created_at', { ascending: false })
-      if (!error && rows && rows.length > 0) setData(rows as BusinessRow[])
-      else setData(MOCK_DATA)
-    } catch {
-      setData(MOCK_DATA)
+      if (err) {
+        setError(err.message)
+        setData([])
+      } else {
+        setData((rows ?? []) as BusinessRow[])
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load')
+      setData([])
     } finally {
       setLoading(false)
     }
@@ -38,9 +38,15 @@ export default function Businesses() {
 
   async function toggleActive(row: BusinessRow) {
     const next = !row.is_active
-    setData(prev => prev.map(item => item.id === row.id ? { ...item, is_active: next } : item))
-    setActionMsg(`${String(row.name)} ${next ? 'activated' : 'suspended'}.`)
-    setTimeout(() => setActionMsg(null), 3000)
+    const { error: err } = await supabase
+      .from('businesses')
+      .update({ is_active: next })
+      .eq('id', row.id)
+    if (!err) {
+      setData(prev => prev.map(item => item.id === row.id ? { ...item, is_active: next } : item))
+      setActionMsg(`${String(row.name)} ${next ? 'activated' : 'suspended'}.`)
+      setTimeout(() => setActionMsg(null), 3000)
+    }
   }
 
   const columns: ColumnDef<BusinessRow>[] = [
@@ -104,6 +110,12 @@ export default function Businesses() {
       {actionMsg && (
         <div className="alert alert-success" style={{ marginBottom: '20px' }}>
           ✓ {actionMsg}
+        </div>
+      )}
+
+      {error && (
+        <div className="alert alert-danger" style={{ marginBottom: '20px' }}>
+          ⚠️ {error}
         </div>
       )}
 

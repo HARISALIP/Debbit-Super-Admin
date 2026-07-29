@@ -2,41 +2,76 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import DataTable from '../../components/organisms/DataTable/DataTable'
 import StatusBadge, { BadgeVariant } from '../../components/atoms/StatusBadge'
-import { WorkstationRow, DeviceKeyRow, ColumnDef } from '../../types'
+import { ColumnDef } from '../../types'
 import { syncHealthStyles } from './SyncHealth.styles'
 
-const MOCK_WORKSTATIONS: WorkstationRow[] = [
-  { id: 'w1', name: 'KL Main Register 01', business_name: 'Metro Mart KL',       last_sync: '2026-07-29T11:58:00Z', pending_sync_count: 0,  status: 'Healthy'  },
-  { id: 'w2', name: 'Bistro POS Counter',  business_name: 'Spice Garden Bistro', last_sync: '2026-07-29T11:40:00Z', pending_sync_count: 14, status: 'Syncing'  },
-  { id: 'w3', name: 'Wholesale Depot 02',  business_name: 'Al Madina Wholesale',  last_sync: '2026-07-27T16:20:00Z', pending_sync_count: 89, status: 'Offline'  },
-  { id: 'w4', name: 'Services Terminal',   business_name: 'Borneo Tech Services', last_sync: '2026-07-29T10:00:00Z', pending_sync_count: 2,  status: 'Healthy'  },
-]
+// Matches `workstation_devices` table schema in Supabase
+interface WorkstationDevice {
+  id: string
+  business_id: string
+  workstation_code: string
+  branch_name?: string
+  app_version?: string
+  platform?: string
+  is_active: boolean
+  last_ping_at?: string
+  updated_at?: string
+}
 
-const MOCK_DEVICE_KEYS: DeviceKeyRow[] = [
-  { id: 'dk1', device_name: 'POS-Terminal-KL-01',  key_prefix: 'deb_live_9f82...', created_at: '2026-06-15T00:00:00Z', status: 'Active'  },
-  { id: 'dk2', device_name: 'Bistro-iPad-Counter',  key_prefix: 'deb_live_3a11...', created_at: '2026-07-01T00:00:00Z', status: 'Active'  },
-  { id: 'dk3', device_name: 'Wholesale-Depot-Old',  key_prefix: 'deb_live_7c44...', created_at: '2026-01-10T00:00:00Z', status: 'Revoked' },
-]
+// Matches `workstation_audit_logs` table schema in Supabase
+interface WorkstationAuditLog {
+  id: string
+  business_id: string
+  workstation_id?: string
+  workstation_code?: string
+  event_type: string
+  description?: string
+  user_id?: string
+  created_at: string
+}
 
 export default function SyncHealth() {
-  const [workstations, setWorkstations] = useState<WorkstationRow[]>([])
-  const [deviceKeys, setDeviceKeys]     = useState<DeviceKeyRow[]>([])
+  const [workstations, setWorkstations] = useState<WorkstationDevice[]>([])
+  const [auditLogs, setAuditLogs]       = useState<WorkstationAuditLog[]>([])
   const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
-      const { data: wsRows } = await supabase.from('workstations').select('*')
-      const { data: dkRows } = await supabase.from('device_keys').select('*')
+      const { data, error } = await supabase.functions.invoke<{ ok?: boolean; workstations?: WorkstationDevice[]; auditLogs?: WorkstationAuditLog[] }>('admin-sync-health', {
+        body: { days: 30 },
+      })
 
-      if (wsRows && wsRows.length > 0) setWorkstations(wsRows as WorkstationRow[])
-      else setWorkstations(MOCK_WORKSTATIONS)
+      if (!error && data?.ok) {
+        setWorkstations((data.workstations ?? []) as WorkstationDevice[])
+        setAuditLogs((data.auditLogs ?? []) as WorkstationAuditLog[])
+        return
+      }
 
-      if (dkRows && dkRows.length > 0) setDeviceKeys(dkRows as DeviceKeyRow[])
-      else setDeviceKeys(MOCK_DEVICE_KEYS)
-    } catch {
-      setWorkstations(MOCK_WORKSTATIONS)
-      setDeviceKeys(MOCK_DEVICE_KEYS)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
+
+      const [wsRes, auditRes] = await Promise.all([
+        supabase
+          .from('workstation_devices')
+          .select('*')
+          .order('updated_at', { ascending: false }),
+        supabase
+          .from('workstation_audit_logs')
+          .select('*')
+          .gte('created_at', thirtyDaysAgo)
+          .order('created_at', { ascending: false })
+          .limit(150),
+      ])
+
+      if (wsRes.error) setError(wsRes.error.message)
+      else setWorkstations((wsRes.data ?? []) as WorkstationDevice[])
+
+      if (auditRes.error && !wsRes.error) setError(auditRes.error.message)
+      else setAuditLogs((auditRes.data ?? []) as WorkstationAuditLog[])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load')
     } finally {
       setLoading(false)
     }
@@ -44,69 +79,79 @@ export default function SyncHealth() {
 
   useEffect(() => { void load() }, [load])
 
-  const statusBadgeVariants: Record<string, BadgeVariant> = {
-    Healthy: 'green',
-    Syncing: 'cyan',
-    Offline: 'red',
-    Error:   'red',
-    Active:  'green',
-    Revoked: 'muted',
-  }
-
-  const wsColumns: ColumnDef<WorkstationRow>[] = [
-    { key: 'name',          header: 'Workstation Name', width: '200px' },
-    { key: 'business_name', header: 'Business',         width: '180px' },
+  const wsColumns: ColumnDef<WorkstationDevice>[] = [
     {
-      key: 'last_sync',
-      header: 'Last Sync',
-      width: '160px',
-      render: (r) => new Date(r.last_sync).toLocaleString(),
-    },
-    {
-      key: 'pending_sync_count',
-      header: 'Pending Records',
-      width: '140px',
-      render: (r) => r.pending_sync_count > 0 ? (
-        <span style={{ color: 'var(--amber)', fontWeight: 700 }}>{r.pending_sync_count} pending</span>
-      ) : (
-        <span style={{ color: 'var(--green)' }}>✓ Synced</span>
+      key: 'workstation_code',
+      header: 'Workstation',
+      render: (r) => (
+        <div>
+          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.workstation_code}</div>
+          {r.branch_name && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{r.branch_name}</div>}
+        </div>
       ),
     },
     {
-      key: 'status',
-      header: 'Health Status',
-      width: '120px',
+      key: 'business_id',
+      header: 'Business ID',
+      width: '180px',
+      render: (r) => <code style={{ fontSize: '11px', color: 'var(--cyan)' }}>{r.business_id.slice(0, 8)}…</code>,
+    },
+    { key: 'platform',    header: 'Platform',   width: '110px' },
+    { key: 'app_version', header: 'App Ver',    width: '100px' },
+    {
+      key: 'last_ping_at',
+      header: 'Last Ping',
+      width: '160px',
+      render: (r) => r.last_ping_at ? new Date(r.last_ping_at).toLocaleString() : '—',
+    },
+    {
+      key: 'is_active',
+      header: 'Status',
+      width: '110px',
       render: (r) => (
-        <StatusBadge variant={statusBadgeVariants[r.status] || 'purple'}>
-          {r.status}
+        <StatusBadge variant={r.is_active ? 'green' : 'muted'}>
+          {r.is_active ? 'Active' : 'Offline'}
         </StatusBadge>
       ),
     },
   ]
 
-  const dkColumns: ColumnDef<DeviceKeyRow>[] = [
-    { key: 'device_name', header: 'Device Name', width: '200px' },
-    {
-      key: 'key_prefix',
-      header: 'Key Prefix',
-      width: '160px',
-      render: (r) => <code style={{ color: 'var(--cyan)' }}>{r.key_prefix}</code>,
-    },
+  const auditBadge: Record<string, BadgeVariant> = {
+    LOGIN:        'green',
+    LOGOUT:       'muted',
+    SYNC_PUSH:    'cyan',
+    SYNC_PULL:    'cyan',
+    AUTH_FAIL:    'red',
+    CRASH:        'red',
+    KEY_REVOKED:  'red',
+    UPDATE:       'purple',
+  }
+
+  const auditColumns: ColumnDef<WorkstationAuditLog>[] = [
     {
       key: 'created_at',
-      header: 'Created',
-      width: '140px',
-      render: (r) => new Date(r.created_at).toLocaleDateString(),
+      header: 'Time',
+      width: '160px',
+      render: (r) => new Date(r.created_at).toLocaleString(),
     },
     {
-      key: 'status',
-      header: 'Status',
-      width: '120px',
+      key: 'event_type',
+      header: 'Event',
+      width: '140px',
       render: (r) => (
-        <StatusBadge variant={statusBadgeVariants[r.status] || 'muted'}>
-          {r.status}
-        </StatusBadge>
+        <StatusBadge variant={auditBadge[r.event_type] || 'purple'}>{r.event_type}</StatusBadge>
       ),
+    },
+    {
+      key: 'workstation_code',
+      header: 'Workstation',
+      width: '150px',
+      render: (r) => r.workstation_code ?? '—',
+    },
+    {
+      key: 'description',
+      header: 'Detail',
+      render: (r) => <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>{r.description ?? '—'}</span>,
     },
   ]
 
@@ -114,7 +159,7 @@ export default function SyncHealth() {
     <div className="fade-in">
       <div style={syncHealthStyles.headerRow}>
         <div>
-          <h1 style={syncHealthStyles.title}>Sync Health & Workstations</h1>
+          <h1 style={syncHealthStyles.title}>Sync Health &amp; Workstations</h1>
           <p style={syncHealthStyles.subtitle}>Monitor offline-first SQLite database synchronization across POS registers</p>
         </div>
         <button className="btn btn-primary" onClick={() => void load()}>
@@ -122,24 +167,30 @@ export default function SyncHealth() {
         </button>
       </div>
 
+      {error && (
+        <div className="alert alert-danger" style={{ marginBottom: '20px' }}>
+          ⚠️ {error}
+        </div>
+      )}
+
       <div style={{ marginBottom: '32px' }}>
         <DataTable
-          title={`Active Workstations (${workstations.length})`}
+          title={`Registered Workstations (${workstations.length})`}
           columns={wsColumns}
           data={workstations}
           loading={loading}
-          searchPlaceholder="Search workstation name, business…"
+          searchPlaceholder="Search workstation code, business, platform…"
           rowKey={r => r.id}
         />
       </div>
 
       <div>
         <DataTable
-          title={`Provisioned Device Keys (${deviceKeys.length})`}
-          columns={dkColumns}
-          data={deviceKeys}
+          title={`Workstation Audit Logs — last 30 days (${auditLogs.length})`}
+          columns={auditColumns}
+          data={auditLogs}
           loading={loading}
-          searchPlaceholder="Search device name…"
+          searchPlaceholder="Search event type, workstation…"
           rowKey={r => r.id}
         />
       </div>

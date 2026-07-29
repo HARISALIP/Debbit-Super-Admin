@@ -2,31 +2,42 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import DataTable from '../../components/organisms/DataTable/DataTable'
 import StatusBadge from '../../components/atoms/StatusBadge'
-import { UserRow, ColumnDef } from '../../types'
+import { ColumnDef } from '../../types'
 import { usersStyles } from './Users.styles'
 
-const MOCK_USERS: UserRow[] = [
-  { id: 'u1', email: 'ahmad@metromart.my', full_name: 'Ahmad Razak',       role: 'Owner',       business_name: 'Metro Mart KL',        last_sign_in: '2026-07-29T11:20:00Z', status: 'Active' },
-  { id: 'u2', email: 'sarah@spicegarden.in', full_name: 'Sarah Sharma',    role: 'Store Manager', business_name: 'Spice Garden Bistro', last_sign_in: '2026-07-28T16:45:00Z', status: 'Active' },
-  { id: 'u3', email: 'omar@almadina.ae',    full_name: 'Omar Al-Mansoor',  role: 'Admin',       business_name: 'Al Madina Wholesale',  last_sign_in: '2026-07-25T09:10:00Z', status: 'Inactive' },
-  { id: 'u4', email: 'lim@borneotech.my',   full_name: 'Lim Guan Eng',     role: 'Cashier',     business_name: 'Borneo Tech Services', last_sign_in: '2026-07-29T08:05:00Z', status: 'Active' },
-]
+// Matches the `business_members` table with joined `businesses` data
+interface BusinessMemberRow {
+  business_id: string
+  user_id: string
+  role: string
+  is_active: boolean
+  joined_at: string
+  users: { full_name?: string; email?: string } | null
+  businesses: { name?: string } | null
+}
 
 export default function Users() {
-  const [data, setData]       = useState<UserRow[]>([])
+  const [data, setData]       = useState<BusinessMemberRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
-      const { data: rows, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-      if (!error && rows && rows.length > 0) setData(rows as UserRow[])
-      else setData(MOCK_USERS)
-    } catch {
-      setData(MOCK_USERS)
+      const { data: rows, error: err } = await supabase
+        .from('business_members')
+        .select('business_id, user_id, role, is_active, joined_at, users(full_name,email), businesses(name)')
+        .order('joined_at', { ascending: false })
+      if (err) {
+        setError(err.message)
+        setData([])
+      } else {
+        setData((rows ?? []) as BusinessMemberRow[])
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load')
+      setData([])
     } finally {
       setLoading(false)
     }
@@ -34,32 +45,50 @@ export default function Users() {
 
   useEffect(() => { void load() }, [load])
 
-  const columns: ColumnDef<UserRow>[] = [
+  const columns: ColumnDef<BusinessMemberRow>[] = [
     {
-      key: 'full_name',
-      header: 'User Name',
+      key: 'users',
+      header: 'User',
       render: (r) => (
         <div>
-          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.full_name}</div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{r.email}</div>
+          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+            {r.users?.full_name ?? r.user_id.slice(0, 8) + '…'}
+          </div>
+          {r.users?.email && (
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{r.users.email}</div>
+          )}
         </div>
       ),
     },
-    { key: 'role',          header: 'Role',          width: '140px' },
-    { key: 'business_name', header: 'Business',      width: '180px' },
     {
-      key: 'last_sign_in',
-      header: 'Last Active',
-      width: '160px',
-      render: (r) => r.last_sign_in ? new Date(r.last_sign_in).toLocaleString() : '—',
+      key: 'role',
+      header: 'Role',
+      width: '140px',
+      render: (r) => (
+        <StatusBadge variant={r.role === 'OWNER' ? 'purple' : r.role === 'ADMIN' ? 'purple' : 'muted'}>
+          {r.role}
+        </StatusBadge>
+      ),
     },
     {
-      key: 'status',
+      key: 'businesses',
+      header: 'Business',
+      width: '200px',
+      render: (r) => r.businesses?.name ?? r.business_id.slice(0, 8) + '…',
+    },
+    {
+      key: 'joined_at',
+      header: 'Joined',
+      width: '150px',
+      render: (r) => r.joined_at ? new Date(r.joined_at).toLocaleDateString() : '—',
+    },
+    {
+      key: 'is_active',
       header: 'Status',
-      width: '120px',
+      width: '110px',
       render: (r) => (
-        <StatusBadge variant={r.status === 'Active' ? 'green' : 'muted'}>
-          {r.status}
+        <StatusBadge variant={r.is_active ? 'green' : 'muted'}>
+          {r.is_active ? 'Active' : 'Inactive'}
         </StatusBadge>
       ),
     },
@@ -70,20 +99,26 @@ export default function Users() {
       <div style={usersStyles.headerRow}>
         <div>
           <h1 style={usersStyles.title}>Platform Users</h1>
-          <p style={usersStyles.subtitle}>View registered merchant staff and admin user accounts</p>
+          <p style={usersStyles.subtitle}>Registered merchant staff and their roles across all businesses</p>
         </div>
         <button className="btn btn-primary" onClick={() => void load()}>
           🔄 Refresh
         </button>
       </div>
 
+      {error && (
+        <div className="alert alert-danger" style={{ marginBottom: '20px' }}>
+          ⚠️ {error}
+        </div>
+      )}
+
       <DataTable
-        title={`All Users (${data.length})`}
+        title={`All Members (${data.length})`}
         columns={columns}
         data={data}
         loading={loading}
-        searchPlaceholder="Search by user name, email, role…"
-        rowKey={r => r.id}
+        searchPlaceholder="Search by user name, email, role, business…"
+        rowKey={(r) => `${r.business_id}_${r.user_id}`}
       />
     </div>
   )
