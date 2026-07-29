@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 120" fill="none">
+  <!-- d -->
+  <path d="M 68 30 A 28 28 0 1 0 68 86 V 12 H 88 V 104 H 68 V 86 A 28 28 0 0 1 68 30 Z" fill="#f4e8fb"/>
+  <!-- e -->
+  <path d="M 148 58 H 112 A 20 20 0 1 1 148 46 V 58 Z M 112 70 A 20 20 0 0 0 148 70" fill="none" stroke="#f4e8fb" stroke-width="16" stroke-linecap="round"/>
+  <!-- b1 -->
+  <path d="M 172 12 H 192 V 104 H 172 Z M 192 46 A 24 24 0 1 1 192 104 H 172 V 46 Z" fill="#f4e8fb"/>
+  <!-- b2 with pink equal sign -->
+  <g>
+    <path d="M 248 12 H 268 V 104 H 248 Z M 268 46 A 24 24 0 1 1 268 104 H 248 V 46 Z" fill="#f4e8fb"/>
+    <rect x="270" y="62" width="20" height="5" rx="2.5" fill="#f472b6"/>
+    <rect x="270" y="73" width="20" height="5" rx="2.5" fill="#f472b6"/>
+  </g>
+  <!-- i -->
+  <circle cx="320" cy="22" r="10" fill="#f4e8fb"/>
+  <rect x="310" y="46" width="20" height="58" rx="3" fill="#f4e8fb"/>
+  <!-- t -->
+  <path d="M 355 12 V 46 H 342 V 64 H 355 V 90 A 14 14 0 0 0 376 104 H 388 V 86 H 376 A 4 4 0 0 1 372 82 V 64 H 388 V 46 H 372 V 12 Z" fill="#f4e8fb"/>
+</svg>
