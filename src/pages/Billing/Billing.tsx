@@ -3,13 +3,14 @@ import { supabase } from '../../lib/supabase'
 import DataTable from '../../components/organisms/DataTable/DataTable'
 import StatusBadge, { BadgeVariant } from '../../components/atoms/StatusBadge'
 import StatCard from '../../components/molecules/StatCard'
-import { BillingRow, ColumnDef } from '../../types'
+import { BillingSubscription, BillingStatus, ColumnDef } from '../../lib/types'
 import { billingStyles } from './Billing.styles'
 
 export default function Billing() {
-  const [data, setData]       = useState<BillingRow[]>([])
+  const [data, setData]       = useState<BillingSubscription[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
+  const [actionMsg, setActionMsg] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -22,7 +23,7 @@ export default function Billing() {
         setError(error.message)
         setData([])
       } else {
-        setData((rows ?? []) as BillingRow[])
+        setData((rows ?? []) as BillingSubscription[])
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load')
@@ -32,25 +33,59 @@ export default function Billing() {
     }
   }, [])
 
-  useEffect(() => { void load() }, [load])
-
-  const statusBadgeVariants: Record<string, BadgeVariant> = {
-    Paid:      'green',
-    'Past Due': 'red',
-    Trial:     'purple',
-    Cancelled: 'muted',
+  async function toggleEnabled(row: BillingSubscription) {
+    const next = !row.is_enabled
+    const { error } = await supabase
+      .from('billing_subscriptions')
+      .update({ is_enabled: next, updated_at: new Date().toISOString() })
+      .eq('id', row.id)
+    if (!error) {
+      setData(prev => prev.map(item => item.id === row.id ? { ...item, is_enabled: next } : item))
+      setActionMsg(`${row.business_name} ${next ? 'enabled' : 'disabled'}.`)
+      setTimeout(() => setActionMsg(null), 3000)
+    } else {
+      setError(error.message)
+    }
   }
 
-  const columns: ColumnDef<BillingRow>[] = [
+  async function updateStatus(row: BillingSubscription, newStatus: BillingStatus) {
+    const { error } = await supabase
+      .from('billing_subscriptions')
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq('id', row.id)
+    if (!error) {
+      setData(prev => prev.map(item => item.id === row.id ? { ...item, status: newStatus } : item))
+      setActionMsg(`${row.business_name} status updated to ${newStatus}.`)
+      setTimeout(() => setActionMsg(null), 3000)
+    } else {
+      setError(error.message)
+    }
+  }
+
+  useEffect(() => { void load() }, [load])
+
+  const statusBadgeVariants: Record<BillingStatus, BadgeVariant> = {
+    Active:     'green',
+    'Past Due': 'red',
+    Suspended:  'amber',
+    Cancelled:  'muted',
+  }
+
+  const columns: ColumnDef<BillingSubscription>[] = [
     { key: 'business_name', header: 'Business',      width: '200px' },
-    { key: 'plan',          header: 'Plan Tier',     width: '140px' },
-    { key: 'amount',        header: 'Amount',        width: '120px' },
+    { key: 'plan_tier',     header: 'Plan Tier',     width: '140px' },
+    {
+      key: 'amount',
+      header: 'Amount',
+      width: '120px',
+      render: (r) => `RM ${r.amount}`,
+    },
     { key: 'billing_cycle', header: 'Cycle',         width: '120px' },
     {
-      key: 'next_billing',
+      key: 'next_billing_date',
       header: 'Next Invoice',
       width: '140px',
-      render: (r) => new Date(r.next_billing).toLocaleDateString(),
+      render: (r) => new Date(r.next_billing_date).toLocaleDateString(),
     },
     {
       key: 'status',
@@ -60,6 +95,42 @@ export default function Billing() {
         <StatusBadge variant={statusBadgeVariants[r.status] || 'purple'}>
           {r.status}
         </StatusBadge>
+      ),
+    },
+    {
+      key: 'is_enabled',
+      header: 'Enabled',
+      width: '100px',
+      render: (r) => (
+        <StatusBadge variant={r.is_enabled ? 'green' : 'red'}>
+          {r.is_enabled ? 'Yes' : 'No'}
+        </StatusBadge>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      width: '180px',
+      render: (r) => (
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            className={`btn btn-sm ${r.is_enabled ? 'btn-danger' : 'btn-success'}`}
+            onClick={() => void toggleEnabled(r)}
+          >
+            {r.is_enabled ? 'Disable' : 'Enable'}
+          </button>
+          <select
+            className="btn btn-sm"
+            style={{ padding: '4px 8px', fontSize: '12px' }}
+            value={r.status}
+            onChange={(e) => void updateStatus(r, e.target.value as BillingStatus)}
+          >
+            <option value="Active">Active</option>
+            <option value="Past Due">Past Due</option>
+            <option value="Suspended">Suspended</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
       ),
     },
   ]
@@ -82,19 +153,25 @@ export default function Billing() {
         </div>
       )}
 
+      {actionMsg && (
+        <div className="alert alert-success" style={{ marginBottom: '20px' }}>
+          ✓ {actionMsg}
+        </div>
+      )}
+
       <div style={billingStyles.kpiGrid}>
         <StatCard title="TOTAL SUBSCRIPTIONS" value={loading ? '…' : String(data.length)} subtext="across all businesses" accentColor="violet" />
-        <StatCard 
-          title="ACTIVE SUBSCRIPTIONS" 
-          value={loading ? '…' : String(data.filter(r => r.status === 'Paid').length)} 
-          subtext="currently active" 
-          accentColor="green" 
+        <StatCard
+          title="ACTIVE SUBSCRIPTIONS"
+          value={loading ? '…' : String(data.filter(r => r.status === 'Active').length)}
+          subtext="currently active"
+          accentColor="green"
         />
-        <StatCard 
-          title="PAST DUE" 
-          value={loading ? '…' : String(data.filter(r => r.status === 'Past Due').length)} 
-          subtext="need attention" 
-          accentColor={data.filter(r => r.status === 'Past Due').length > 0 ? 'red' : 'green'} 
+        <StatCard
+          title="PAST DUE"
+          value={loading ? '…' : String(data.filter(r => r.status === 'Past Due').length)}
+          subtext="need attention"
+          accentColor={data.filter(r => r.status === 'Past Due').length > 0 ? 'red' : 'green'}
         />
       </div>
 
