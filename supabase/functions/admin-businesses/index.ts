@@ -26,35 +26,16 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, error: 'Missing Supabase environment variables' }, 500)
   }
 
-  let body: { days?: number } = {}
-  try {
-    body = await req.json()
-  } catch {
-    body = {}
-  }
-
-  const days = Math.max(7, Math.min(90, Number(body.days) || 30))
-  const since = new Date(Date.now() - days * 86400000).toISOString()
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
-  const [wsRes, auditRes] = await Promise.all([
-    supabase.from('workstation_devices').select('*').order('updated_at', { ascending: false }),
-    supabase
-      .from('workstation_audit_logs')
-      .select('*')
-      .gte('created_at', since)
-      .order('created_at', { ascending: false })
-      .limit(150),
-  ])
+  const { data, error } = await supabase
+    .from('businesses')
+    .select('*')
+    .order('created_at', { ascending: false })
 
-  if (wsRes.error) return json({ ok: false, error: wsRes.error.message }, 500)
-  if (auditRes.error) return json({ ok: false, error: auditRes.error.message }, 500)
+  if (error) return json({ ok: false, error: error.message }, 500)
 
-  return json({
-    ok: true,
-    workstations: wsRes.data ?? [],
-    auditLogs: auditRes.data ?? [],
-  })
+  return json({ ok: true, businesses: data ?? [] })
 })

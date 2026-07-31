@@ -16,16 +16,11 @@ export default function Businesses() {
     setLoading(true)
     setError(null)
     try {
-      const { data: rows, error: err } = await supabase
-        .from('businesses')
-        .select('*')
-        .order('created_at', { ascending: false })
-      if (err) {
-        setError(err.message)
-        setData([])
-      } else {
-        setData((rows ?? []) as BusinessRow[])
+      const { data, error } = await supabase.functions.invoke<{ ok?: boolean; businesses?: BusinessRow[]; error?: string }>('admin-businesses')
+      if (error || !data?.ok) {
+        throw new Error(error?.message || data?.error || 'Failed to load businesses')
       }
+      setData(data.businesses ?? [])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load')
       setData([])

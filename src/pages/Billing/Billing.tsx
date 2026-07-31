@@ -6,27 +6,27 @@ import StatCard from '../../components/molecules/StatCard'
 import { BillingRow, ColumnDef } from '../../types'
 import { billingStyles } from './Billing.styles'
 
-const MOCK_BILLING: BillingRow[] = [
-  { id: 'b1', business_name: 'Metro Mart KL',       plan: 'Growth Plan', amount: 'RM 299/mo', billing_cycle: 'Monthly', next_billing: '2026-08-15T00:00:00Z', status: 'Paid'     },
-  { id: 'b2', business_name: 'Spice Garden Bistro', plan: 'Enterprise',  amount: 'RM 599/mo', billing_cycle: 'Annual',  next_billing: '2027-01-01T00:00:00Z', status: 'Paid'     },
-  { id: 'b3', business_name: 'Al Madina Wholesale', plan: 'Starter',     amount: 'RM 149/mo', billing_cycle: 'Monthly', next_billing: '2026-07-20T00:00:00Z', status: 'Past Due' },
-  { id: 'b4', business_name: 'Borneo Tech Services', plan: 'Growth Plan', amount: 'RM 299/mo', billing_cycle: 'Monthly', next_billing: '2026-08-01T00:00:00Z', status: 'Paid'     },
-]
-
 export default function Billing() {
   const [data, setData]       = useState<BillingRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const { data: rows, error } = await supabase
         .from('billing_subscriptions')
         .select('*')
-      if (!error && rows && rows.length > 0) setData(rows as BillingRow[])
-      else setData(MOCK_BILLING)
-    } catch {
-      setData(MOCK_BILLING)
+      if (error) {
+        setError(error.message)
+        setData([])
+      } else {
+        setData((rows ?? []) as BillingRow[])
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load')
+      setData([])
     } finally {
       setLoading(false)
     }
@@ -76,10 +76,26 @@ export default function Billing() {
         </button>
       </div>
 
+      {error && (
+        <div className="alert alert-danger" style={{ marginBottom: '20px' }}>
+          ⚠️ {error}
+        </div>
+      )}
+
       <div style={billingStyles.kpiGrid}>
-        <StatCard title="ESTIMATED MRR" value="RM 14,850" subtext="+18% growth" trend={{ value: '18% MRR', isUp: true }} accentColor="violet" />
-        <StatCard title="ACTIVE SUBSCRIPTIONS" value="12 accounts" subtext="98% retention" accentColor="green" />
-        <StatCard title="PAST DUE INVOICES" value="1 account" subtext="RM 149 overdue" badgeVariant="red" accentColor="red" />
+        <StatCard title="TOTAL SUBSCRIPTIONS" value={loading ? '…' : String(data.length)} subtext="across all businesses" accentColor="violet" />
+        <StatCard 
+          title="ACTIVE SUBSCRIPTIONS" 
+          value={loading ? '…' : String(data.filter(r => r.status === 'Paid').length)} 
+          subtext="currently active" 
+          accentColor="green" 
+        />
+        <StatCard 
+          title="PAST DUE" 
+          value={loading ? '…' : String(data.filter(r => r.status === 'Past Due').length)} 
+          subtext="need attention" 
+          accentColor={data.filter(r => r.status === 'Past Due').length > 0 ? 'red' : 'green'} 
+        />
       </div>
 
       <DataTable
