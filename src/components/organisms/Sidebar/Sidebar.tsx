@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { supabase } from '../../../lib/supabase'
 import { sidebarStyles } from './Sidebar.styles'
 
 interface NavItem {
@@ -13,20 +14,49 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { to: '/',            label: 'Today',       subtitle: 'Platform at a glance', icon: '🏠' },
-  { to: '/businesses',  label: 'Businesses',  subtitle: 'Tenant accounts',      icon: '🏢', badge: '12 active', badgeColor: 'badge-green' },
-  { to: '/users',       label: 'Users',       subtitle: 'Registered accounts',   icon: '👥', badge: '34' },
-  { to: '/telemetry',   label: 'Telemetry',   subtitle: 'Error & crash logs',    icon: '📡', badge: '2 new', badgeColor: 'badge-red' },
+  { to: '/businesses',  label: 'Businesses',  subtitle: 'Tenant accounts',      icon: '🏢', badgeColor: 'badge-green' },
+  { to: '/users',       label: 'Users',       subtitle: 'Registered accounts',   icon: '👥' },
+  { to: '/telemetry',   label: 'Telemetry',   subtitle: 'Error & crash logs',    icon: '📡' },
   { to: '/sync',        label: 'Sync Health', subtitle: 'Workstations & POS',   icon: '🔄' },
   { to: '/billing',     label: 'Billing',     subtitle: 'Subscriptions & MRR',  icon: '💳' },
 ]
 
 export default function Sidebar() {
+  const [businessCount, setBusinessCount] = useState<number | null>(null)
+  const [userCount, setUserCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    async function fetchCounts() {
+      const [bizRes, userRes] = await Promise.all([
+        supabase.from('businesses').select('id', { count: 'exact', head: true }),
+        supabase.from('business_members').select('id', { count: 'exact', head: true }),
+      ])
+      if (!bizRes.error && bizRes.count !== null) {
+        setBusinessCount(bizRes.count)
+      }
+      if (!userRes.error && userRes.count !== null) {
+        setUserCount(userRes.count)
+      }
+    }
+    fetchCounts()
+  }, [])
+
+  const navWithBadges = NAV.map(item => {
+    if (item.to === '/businesses') {
+      return { ...item, badge: businessCount !== null ? `${businessCount} active` : '…' }
+    }
+    if (item.to === '/users') {
+      return { ...item, badge: userCount !== null ? String(userCount) : '…' }
+    }
+    return item
+  })
+
   return (
     <nav style={sidebarStyles.sidebar}>
       <div style={sidebarStyles.navArea}>
         <div style={sidebarStyles.sectionLabel}>YOU RUN THE PLATFORM</div>
 
-        {NAV.map(({ to, label, subtitle, icon, badge, badgeColor }) => (
+        {navWithBadges.map(({ to, label, subtitle, icon, badge, badgeColor }) => (
           <NavLink
             key={to}
             to={to}
