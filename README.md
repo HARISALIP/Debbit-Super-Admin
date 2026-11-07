@@ -46,3 +46,11 @@ Set two Edge Function secrets (Supabase → Project Settings → Edge Functions 
 | `PRO_ADMIN_KEY` | the same value as `DEBBIT_ADMIN_KEY` on the gateway |
 
 Without them the page says Pro is not connected.
+
+### Paid or not
+
+Pro has no billing of its own. Each Pro shop's plan, price, "paid until" date and the payments debbit received are entered by hand on
+the shop's page and kept in `pro_subscriptions` and `pro_payments` (monorepo `supabase/migrations/095_pro_subscriptions.sql`), through
+the `admin-pro-billing` Edge Function. Only that function reaches the tables (RLS on, no policies). A saved payment cannot be changed
+or deleted; recording one moves "paid until" forward, never back. Until migration 095 is applied, the pages say so and everything else
+works as before.
