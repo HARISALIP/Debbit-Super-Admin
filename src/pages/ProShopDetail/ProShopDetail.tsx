@@ -7,10 +7,11 @@ import StatusBadge from '../../components/atoms/StatusBadge'
 import { ColumnDef, ProPerson, ProShopDetail as Detail } from '../../types'
 import { PROBLEM_TEXT, ago, callPro, estimateUsd, fmt } from '../../lib/pro'
 import { billingStyles as s } from '../Billing/Billing.styles'
+import ProPayments from './ProPayments'
 
 const TASK: Record<string, string> = { ask: 'Ask debbit', draft: 'Reminder drafts', classify: 'Bank suggestions' }
 
-// One Pro shop: its businesses, people, activity counts, AI use by month and the health of its site. Read only.
+// One Pro shop: its businesses, people, activity counts, AI use by month and the health of its site. Payments are entered by hand; the shop's own figures are read only.
 export default function ProShopDetail() {
   const { id = '' } = useParams()
   const [d, setD] = useState<Detail | null>(null)
@@ -75,6 +76,8 @@ export default function ProShopDetail() {
         <StatCard title="AI QUESTIONS" value={loading ? '…' : fmt(f?.ai_this_month.questions)} subtext={f ? `this month (${f.ai_this_month.month})` : ''} />
         <StatCard title="SUPPORT WAITING" value={loading ? '…' : fmt(f?.support?.waiting_for_debbit)} subtext={f?.support ? `${f.support.open} open` : ''} accentColor={f?.support?.waiting_for_debbit ? 'red' : 'green'} />
       </div>
+
+      <ProPayments shopId={id} shopName={f?.businesses[0]?.name ?? ''} />
 
       {f && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>

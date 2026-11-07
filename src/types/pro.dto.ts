@@ -72,3 +72,34 @@ export interface ProHealth {
   memberships_ok: boolean | null
   sites: { id: string; site: string; status: ProShopStatus; reachable: boolean; ms: number | null; health?: ProSiteHealth | null; problem?: ProProblem }[]
 }
+
+// Paid or not: kept by hand in the Super Admin (admin-pro-billing, monorepo migration 095). Pro itself has no billing.
+export type ProPaymentMethod = 'cash' | 'mobile_money' | 'bank_transfer' | 'card' | 'other'
+
+export interface ProSubscription {
+  shop_id: string
+  shop_name: string | null
+  plan: string | null
+  price: number | null
+  currency: string | null
+  paid_until: string | null
+  trial_ends: string | null
+  notes: string | null
+  updated_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProPayment {
+  id: string
+  shop_id: string
+  amount: number
+  currency: string
+  paid_on: string
+  covers_until: string
+  method: ProPaymentMethod
+  reference: string | null
+  note: string | null
+  recorded_by: string
+  created_at: string
+}
