@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 // Every Pro read goes through the admin-pro Edge Function, which checks super_admins and holds the Pro gateway key.
 export type ProResult<T> = { ok: true; data: T } | { ok: false; error: string; notConnected?: boolean }
 
-export async function callPro<T>(op: 'shops' | 'shop' | 'health', id?: string): Promise<ProResult<T>> {
+export async function callPro<T>(op: 'shops' | 'shop' | 'health' | 'trend', id?: string): Promise<ProResult<T>> {
   try {
     const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string; notConnected?: boolean } & T>('admin-pro', { body: { op, id } })
     if (error || !data?.ok) return { ok: false, error: data?.error || error?.message || 'Could not reach debbit Pro', notConnected: !!data?.notConnected }

@@ -178,3 +178,10 @@ export interface SuperAdminLogEntry {
   target: string | null
   detail: Record<string, unknown>
 }
+
+// One saved day of a shop's headline counts (admin-pro, pro_snapshots).
+export interface ProSnapshot {
+  day: string
+  figures: { people_enabled: number | null; signed_in_7: number | null; documents_7: number; documents_30: number; ai_questions_month: number | null
+    ai_tokens_month: number; support_open: number | null; disk_used_percent: number | null; errors_7: number | null }
+}

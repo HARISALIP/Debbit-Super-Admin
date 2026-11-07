@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import DataTable from '../../components/organisms/DataTable/DataTable'
 import StatCard from '../../components/molecules/StatCard'
 import StatusBadge from '../../components/atoms/StatusBadge'
-import { ColumnDef, ProCustomer, ProPerson, ProRecentDoc, ProShopDetail as Detail, ProSubscription, SuperAdminLogEntry } from '../../types'
+import { ColumnDef, ProCustomer, ProPerson, ProRecentDoc, ProShopDetail as Detail, ProSnapshot, ProSubscription, SuperAdminLogEntry } from '../../types'
 import { CONSENT_TEXT, PROBLEM_TEXT, ago, callPro, callProBilling, callProCrm, estimateUsd, fmt } from '../../lib/pro'
 import { attentionFor } from '../../lib/proAttention'
 import { billingStyles as s } from '../Billing/Billing.styles'
@@ -33,11 +33,14 @@ export default function ProShopDetail() {
   const [sub, setSub] = useState<ProSubscription | null | undefined>(undefined)
   const [card, setCard] = useState<ProCustomer | null>(null)
   const [log, setLog] = useState<SuperAdminLogEntry[] | null>(null)
+  const [trend, setTrend] = useState<ProSnapshot[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
+    // Refresh today's snapshot first (the list read saves it), then read the saved days back.
+    void callPro<{ days: ProSnapshot[] }>('trend', id).then(t => setTrend(t.ok ? t.data.days : null))
     const [r, b, l, c] = await Promise.all([callPro<Detail>('shop', id), callProBilling<{ subscription: ProSubscription | null }>({ op: 'get', id }),
       callProCrm<{ log: SuperAdminLogEntry[] }>({ op: 'log', id }), callProCrm<{ customer: ProCustomer | null }>({ op: 'get', id })])
     if (c.ok) setCard(c.data.customer)
@@ -162,6 +165,24 @@ export default function ProShopDetail() {
               </LineChart>
             </ResponsiveContainer>
           ) : muted(loading ? 'Loading…' : OLDER)}
+        </div>
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div style={{ fontWeight: 800, marginBottom: 4 }}>Last 90 days</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Saved once a day when someone opens the Pro customers list, so a day nobody looked is missing.</div>
+          {trend && trend.length > 1 ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={trend.map(t => ({ day: t.day, ...t.figures }))}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="day" fontSize={11} tickFormatter={(v: string) => v.slice(5)} />
+                <YAxis allowDecimals={false} fontSize={12} />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="documents_7" name="Documents (7 days)" stroke="var(--purple-main)" dot={false} />
+                <Line type="monotone" dataKey="signed_in_7" name="People signed in (7 days)" stroke="var(--cyan)" dot={false} />
+                <Line type="monotone" dataKey="ai_questions_month" name="AI questions (month)" stroke="var(--green)" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : muted(trend === null ? 'Trends are not available yet (needs the snapshots migration).' : 'Not enough saved days yet. Lines appear after the list has been opened on two different days.')}
         </div>
         {f && card2('Submitted documents', <table style={{ width: '100%' }}><tbody>
           {(['sales_invoices', 'till_sales', 'supplier_bills', 'payments', 'journals'] as const).map(k => (
