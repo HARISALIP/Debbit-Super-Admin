@@ -33,6 +33,35 @@ export interface ProShopFigures {
   support: { waiting_for_debbit: number; open: number } | null
   ai_this_month: { month: string; questions: number } & ProTokens
   health: ProSiteHealth
+  // Sent by gateways with the richer admin feed (debbitOG, 7 Nov 2026); missing on older sites.
+  setup?: ProSetup
+  ai_rules?: ProAiRules | null
+  country_apps?: string[]
+  problems_7_days?: { errors: number | null; failed_emails: number | null }
+  daily?: ProDay[]
+}
+
+export interface ProSetup {
+  records: { customers: number | null; suppliers: number | null; products: number | null; warehouses: number | null; bank_accounts: number | null; tax_templates: number | null }
+  opening: { account_balances: boolean; customer_balances: boolean; supplier_balances: boolean; opening_stock: boolean }
+}
+
+export interface ProAiRules {
+  paused: boolean
+  version: number
+  // Capability ids ticked per AI identity, e.g. {"ai:assistant": ["customers.list", ...]}
+  ticked: Record<string, string[]>
+  approvers: number
+}
+
+export interface ProDay { date: string; documents: number; sign_ins: number }
+
+export interface ProRecentDoc {
+  kind: string
+  date: string | null
+  by: string
+  state: 'in force' | 'cancelled'
+  at: string | null
 }
 
 export interface ProShopRow {
@@ -41,6 +70,8 @@ export interface ProShopRow {
   status: ProShopStatus
   figures: ProShopFigures | null
   problem?: ProProblem
+  // What the gateway switched on for this shop (never a key). Missing on older gateways.
+  gateway?: { ai: boolean; account_mail: boolean }
 }
 
 export interface ProPerson {
@@ -64,10 +95,11 @@ export interface ProAiUsageRow extends ProTokens {
 export interface ProShopDetail extends ProShopRow {
   people: ProPerson[] | null
   ai_usage: ProAiUsageRow[] | null
+  recent?: ProRecentDoc[] | null
 }
 
 export interface ProHealth {
-  gateway: { version: string | null; node: string; uptime_seconds: number; memory_mb: number }
+  gateway: { version: string | null; node: string; uptime_seconds: number; memory_mb: number; ai?: { models: Record<string, string>; monthly_questions: number | null } | null }
   sessions_ok: boolean | null
   memberships_ok: boolean | null
   sites: { id: string; site: string; status: ProShopStatus; reachable: boolean; ms: number | null; health?: ProSiteHealth | null; problem?: ProProblem }[]
