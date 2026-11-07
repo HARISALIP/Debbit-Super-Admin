@@ -1,5 +1,5 @@
 // =============================================================================
-// debbit OS Super Admin Portal · Debbit Pro shops: paid or not
+// debbit OS Super Admin Portal · debbit Pro shops: paid or not
 //
 // Pro has no billing of its own, so debbit keeps each Pro shop's plan, price and "paid until" date here, and the payments it
 // received, entered by hand. Tables pro_subscriptions and pro_payments (monorepo migration 095): RLS on, no policies, so only this

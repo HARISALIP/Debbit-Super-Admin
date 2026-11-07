@@ -1,5 +1,5 @@
 // =============================================================================
-// debbit OS Super Admin Portal · Debbit Pro shops (read-only)
+// debbit OS Super Admin Portal · debbit Pro shops (read-only)
 //
 // Pro keeps every shop's records in its own ERPNext site, behind the Pro gateway. This function asks the gateway's admin read API
 // (debbitOG docs/SUPER-ADMIN-API.md) for counts, dates and statuses only, after requireSuperAdmin() has checked the caller.
@@ -28,7 +28,7 @@ Deno.serve(async (req: Request) => {
   const key = (Deno.env.get('PRO_ADMIN_KEY') ?? '').trim()
   // HTTPS only; plain http only to this machine, for local testing.
   if (!/^(https:\/\/[A-Za-z0-9.-]+|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/.test(base) || key.length < 32) {
-    return json({ ok: false, notConnected: true, error: 'Debbit Pro is not connected yet. Set PRO_GATEWAY_URL and PRO_ADMIN_KEY in this project\'s Edge Function secrets.' }, 200)
+    return json({ ok: false, notConnected: true, error: 'debbit Pro is not connected yet. Set PRO_GATEWAY_URL and PRO_ADMIN_KEY in this project\'s Edge Function secrets.' }, 200)
   }
 
   const body = await req.json().catch(() => ({}))

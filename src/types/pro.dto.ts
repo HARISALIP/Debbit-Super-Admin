@@ -1,4 +1,4 @@
-// Debbit Pro shops, as the Pro gateway's admin read API returns them (debbitOG docs/SUPER-ADMIN-API.md). Counts, dates and statuses only.
+// debbit Pro shops, as the Pro gateway's admin read API returns them (debbitOG docs/SUPER-ADMIN-API.md). Counts, dates and statuses only.
 
 export type ProShopStatus = 'active' | 'suspended'
 export type ProProblem = 'no_reader' | 'reader_refused' | 'unreachable'

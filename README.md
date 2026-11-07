@@ -32,7 +32,7 @@ which verifies the caller's Supabase session belongs to an active row in
 `super_admins` before touching any cross-business data with the
 service-role key.
 
-## Debbit Pro shops (`/pro`)
+## debbit Pro shops (`/pro`)
 
 Pro keeps each shop in its own ERPNext site, behind the Pro gateway (`openhousedebbit/debbitOG`). The **Pro shops** pages read it
 through the `admin-pro` Edge Function, which checks `super_admins` and then calls the gateway's read-only admin API

@@ -6,10 +6,10 @@ export type ProResult<T> = { ok: true; data: T } | { ok: false; error: string; n
 export async function callPro<T>(op: 'shops' | 'shop' | 'health', id?: string): Promise<ProResult<T>> {
   try {
     const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string; notConnected?: boolean } & T>('admin-pro', { body: { op, id } })
-    if (error || !data?.ok) return { ok: false, error: data?.error || error?.message || 'Could not reach Debbit Pro', notConnected: !!data?.notConnected }
+    if (error || !data?.ok) return { ok: false, error: data?.error || error?.message || 'Could not reach debbit Pro', notConnected: !!data?.notConnected }
     return { ok: true, data: data as T }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : 'Could not reach Debbit Pro' }
+    return { ok: false, error: e instanceof Error ? e.message : 'Could not reach debbit Pro' }
   }
 }
 
