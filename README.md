@@ -31,3 +31,18 @@ Every `admin-*` Edge Function starts by calling `requireSuperAdmin()`,
 which verifies the caller's Supabase session belongs to an active row in
 `super_admins` before touching any cross-business data with the
 service-role key.
+
+## Debbit Pro shops (`/pro`)
+
+Pro keeps each shop in its own ERPNext site, behind the Pro gateway (`openhousedebbit/debbitOG`). The **Pro shops** pages read it
+through the `admin-pro` Edge Function, which checks `super_admins` and then calls the gateway's read-only admin API
+(debbitOG `docs/SUPER-ADMIN-API.md`). Counts, dates and statuses only; nothing here changes a Pro shop.
+
+Set two Edge Function secrets (Supabase → Project Settings → Edge Functions → Secrets):
+
+| Secret | Value |
+|---|---|
+| `PRO_GATEWAY_URL` | the Pro gateway, e.g. `https://pro-gateway.onrender.com` (no trailing slash) |
+| `PRO_ADMIN_KEY` | the same value as `DEBBIT_ADMIN_KEY` on the gateway |
+
+Without them the page says Pro is not connected.
