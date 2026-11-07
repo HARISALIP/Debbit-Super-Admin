@@ -54,3 +54,14 @@ the shop's page and kept in `pro_subscriptions` and `pro_payments` (monorepo `su
 the `admin-pro-billing` Edge Function. Only that function reaches the tables (RLS on, no policies). A saved payment cannot be changed
 or deleted; recording one moves "paid until" forward, never back. Until migration 095 is applied, the pages say so and everything else
 works as before.
+
+### Customer records
+
+What debbit itself knows about each Pro customer is kept here in Supabase only, never in the shop: a customer card (owner, contact,
+country, stage, tags, account manager, AI consent), a notes timeline and a change log of everything any Super Admin saves. Tables
+`pro_customers`, `pro_notes` and `super_admin_log` (migration `supabase/migrations/20261107180000_pro_customer_records.sql`), reached only
+by the `admin-pro-crm` Edge Function. RLS is on with no policies; notes and the log are append-only (a trigger refuses edits and deletes).
+Payments and plan changes in `admin-pro-billing` are written to the same log.
+
+**The separation rule:** Super Admin's backend is Supabase only. It never connects to a shop's ERPNext database, the VPS or Render, and
+it never changes a shop. Its only link to Pro is the gateway's read-only admin feed.

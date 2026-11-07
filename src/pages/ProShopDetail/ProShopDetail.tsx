@@ -8,6 +8,8 @@ import { ColumnDef, ProPerson, ProShopDetail as Detail } from '../../types'
 import { PROBLEM_TEXT, ago, callPro, estimateUsd, fmt } from '../../lib/pro'
 import { billingStyles as s } from '../Billing/Billing.styles'
 import ProPayments from './ProPayments'
+import CustomerCard from './CustomerCard'
+import Notes from './Notes'
 
 const TASK: Record<string, string> = { ask: 'Ask debbit', draft: 'Reminder drafts', classify: 'Bank suggestions' }
 
@@ -77,6 +79,8 @@ export default function ProShopDetail() {
         <StatCard title="SUPPORT WAITING" value={loading ? '…' : fmt(f?.support?.waiting_for_debbit)} subtext={f?.support ? `${f.support.open} open` : ''} accentColor={f?.support?.waiting_for_debbit ? 'red' : 'green'} />
       </div>
 
+      <CustomerCard shopId={id} shopName={f?.businesses[0]?.name ?? ''} shopCountry={f?.businesses[0]?.country ?? ''} />
+
       <ProPayments shopId={id} shopName={f?.businesses[0]?.name ?? ''} />
 
       {f && (
@@ -125,6 +129,8 @@ export default function ProShopDetail() {
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10 }}>This month: {thisMonthTasks.map(r => `${TASK[r.task] ?? r.task} ${r.calls}× (${r.model})`).join(' · ')}</div>
         )}
       </div>
+
+      <Notes shopId={id} />
 
       <DataTable title={`People (${d?.people?.length ?? 0})`} columns={people} data={d?.people ?? []} loading={loading} searchPlaceholder="Search name, email…" rowKey={p => p.email} />
     </div>

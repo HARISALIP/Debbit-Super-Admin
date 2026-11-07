@@ -90,3 +90,26 @@ export function addMonths(from: string, months: number): string {
   else { d.setUTCDate(day); d.setUTCDate(d.getUTCDate() - 1) }
   return d.toISOString().slice(0, 10)
 }
+
+// Customer records (card, notes, change log), through the admin-pro-crm Edge Function (super_admins checked there).
+export async function callProCrm<T>(body: Record<string, unknown>): Promise<BillingResult<T>> {
+  try {
+    const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string; notReady?: boolean } & T>('admin-pro-crm', { body })
+    if (error || !data?.ok) {
+      let message = data?.error
+      const ctx = (error as { context?: Response } | null)?.context
+      if (!message && ctx && typeof ctx.json === 'function') message = await ctx.json().then((b: { error?: string }) => b?.error).catch(() => undefined)
+      return { ok: false, error: message || error?.message || 'Could not reach the customer records', notReady: !!data?.notReady }
+    }
+    return { ok: true, data: data as T }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Could not reach the customer records' }
+  }
+}
+
+export const STAGE_TEXT: Record<string, { label: string; variant: PaidState['variant'] }> = {
+  trial: { label: 'Trial', variant: 'cyan' }, onboarding: { label: 'Onboarding', variant: 'amber' }, live: { label: 'Live', variant: 'green' },
+  paused: { label: 'Paused', variant: 'muted' }, left: { label: 'Left', variant: 'red' },
+}
+export const CONSENT_TEXT: Record<string, string> = { not_asked: 'Not asked yet', asked: 'Asked, waiting', agreed: 'Agreed', refused: 'Said no' }
+export const NOTE_KIND_TEXT: Record<string, string> = { note: 'Note', call: 'Call', visit: 'Visit', email: 'Email', issue: 'Issue', training: 'Training' }
