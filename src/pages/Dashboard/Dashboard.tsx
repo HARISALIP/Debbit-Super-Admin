@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import StatCard from '../../components/molecules/StatCard'
 import { dashboardStyles } from './Dashboard.styles'
+import ProSummary from './ProSummary'
 
 interface SalesRow {
   sale_date: string
@@ -170,6 +171,8 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <ProSummary />
 
       {/* AI Prompt Box */}
       <div className="ai-prompt-box">

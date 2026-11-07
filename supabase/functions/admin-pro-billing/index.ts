@@ -6,7 +6,7 @@
 // function (service role, after requireSuperAdmin) reaches them. Payments are append-only; recording one moves paid_until forward
 // in the same transaction (admin_record_pro_payment). Nothing here touches a Pro shop's own ERPNext records.
 //
-// Body: {op:'list'} | {op:'get', id} | {op:'save', id, shop_name?, plan?, price?, currency?, paid_until?, trial_ends?, notes?}
+// Body: {op:'list'} | {op:'summary'} | {op:'get', id} | {op:'save', id, shop_name?, plan?, price?, currency?, paid_until?, trial_ends?, notes?}
 //     | {op:'record_payment', id, amount, currency, paid_on, covers_until, method, reference?, note?}
 // =============================================================================
 import { CORS_HEADERS, json, requireSuperAdmin, AuthzError } from '../_shared/authz.ts'
@@ -64,7 +64,7 @@ Deno.serve(async (req: Request) => {
   const body = await req.json().catch(() => ({}))
   const op = body?.op
   const id = body?.id
-  if (op !== 'list' && (typeof id !== 'string' || !SHOP_ID.test(id))) return json({ ok: false, error: 'Unknown shop' }, 400)
+  if (op !== 'list' && op !== 'summary' && (typeof id !== 'string' || !SHOP_ID.test(id))) return json({ ok: false, error: 'Unknown shop' }, 400)
 
   try {
     if (op === 'list') {
@@ -72,6 +72,17 @@ Deno.serve(async (req: Request) => {
       if (missing(error)) return json({ ok: false, notReady: true, error: NOT_READY })
       if (error) throw error
       return json({ ok: true, subscriptions: data ?? [] })
+    }
+
+    if (op === 'summary') {
+      // Money debbit received from Pro customers this calendar month (UTC), per currency, from the payments entered by hand.
+      const first = new Date().toISOString().slice(0, 8) + '01'
+      const { data, error } = await supabase.from('pro_payments').select('amount, currency').gte('paid_on', first)
+      if (missing(error)) return json({ ok: false, notReady: true, error: NOT_READY })
+      if (error) throw error
+      const byCurrency: Record<string, number> = {}
+      for (const p of data ?? []) byCurrency[p.currency] = Math.round(((byCurrency[p.currency] ?? 0) + Number(p.amount)) * 100) / 100
+      return json({ ok: true, month: first.slice(0, 7), received: byCurrency, payments: (data ?? []).length })
     }
 
     if (op === 'get') {
