@@ -3,15 +3,25 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import StatusBadge from '../../components/atoms/StatusBadge'
 import StatCard from '../../components/molecules/StatCard'
-import { BusinessDetailDTO, BusinessDetailStats } from '../../types'
+import { BusinessDetailDTO, BusinessDetailStats, WorkstationDeviceRow, SyncDeviceRow, ShiftRow } from '../../types'
 import { businessDetailStyles } from './BusinessDetail.styles'
+
+function fmtDate(v: string | null | undefined) {
+  return v ? new Date(v).toLocaleString() : '—'
+}
 
 export default function BusinessDetail() {
   const { id } = useParams<{ id: string }>()
   const [business, setBusiness] = useState<BusinessDetailDTO | null>(null)
   const [stats, setStats]       = useState<BusinessDetailStats | null>(null)
+  const [devices, setDevices]   = useState<WorkstationDeviceRow[]>([])
+  const [syncDevices, setSyncDevices] = useState<SyncDeviceRow[]>([])
+  const [shifts, setShifts]     = useState<ShiftRow[]>([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState<string | null>(null)
+  const [limitInput, setLimitInput] = useState('')
+  const [limitBusy, setLimitBusy]   = useState(false)
+  const [limitMsg, setLimitMsg]     = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -22,6 +32,9 @@ export default function BusinessDetail() {
           ok?: boolean
           business?: BusinessDetailDTO
           stats?: BusinessDetailStats
+          devices?: WorkstationDeviceRow[]
+          syncDevices?: SyncDeviceRow[]
+          shifts?: ShiftRow[]
           error?: string
         }>('admin-business-detail', { body: { id } })
 
@@ -33,6 +46,11 @@ export default function BusinessDetail() {
         }
         setBusiness(data.business ?? null)
         setStats(data.stats ?? null)
+        setDevices(data.devices ?? [])
+        setSyncDevices(data.syncDevices ?? [])
+        setShifts(data.shifts ?? [])
+        const dl = data.business?.device_limit
+        setLimitInput(dl == null ? '' : String(dl))
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load')
         setBusiness(null)
@@ -43,6 +61,32 @@ export default function BusinessDetail() {
     }
     if (id) void load()
   }, [id])
+
+  async function saveDeviceLimit() {
+    if (!business) return
+    const trimmed = limitInput.trim()
+    const deviceLimit = trimmed === '' ? null : Number(trimmed)
+    if (deviceLimit !== null && (!Number.isInteger(deviceLimit) || deviceLimit < 0)) {
+      setLimitMsg('Enter a whole number 0 or greater, or leave blank for unlimited.')
+      return
+    }
+    setLimitBusy(true)
+    setLimitMsg(null)
+    try {
+      const { data, error: err } = await supabase.functions.invoke<{ ok?: boolean; business?: { device_limit: number | null }; error?: string }>('admin-business-action', {
+        body: { id: business.id, action: 'set_device_limit', device_limit: deviceLimit },
+      })
+      if (err || !data?.ok) {
+        setLimitMsg(err?.message || data?.error || 'Failed to update device limit')
+        return
+      }
+      setBusiness(prev => prev ? { ...prev, device_limit: data.business?.device_limit ?? deviceLimit } : prev)
+      setLimitMsg('Saved.')
+      setTimeout(() => setLimitMsg(null), 3000)
+    } finally {
+      setLimitBusy(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -142,6 +186,108 @@ export default function BusinessDetail() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Devices & Sync Sessions */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '24px' }}>
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', gap: '12px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+              POS Terminals ({devices.length})
+            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Device cap</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="∞"
+                value={limitInput}
+                onChange={e => setLimitInput(e.target.value)}
+                style={{ width: '56px', padding: '4px 8px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
+              />
+              <button className="btn btn-sm" disabled={limitBusy} onClick={() => void saveDeviceLimit()}>
+                {limitBusy ? '…' : 'Save'}
+              </button>
+            </div>
+          </div>
+          {limitMsg && <div style={{ fontSize: '11px', color: limitMsg === 'Saved.' ? 'var(--green)' : 'var(--red)', marginBottom: '10px' }}>{limitMsg}</div>}
+          {devices.length === 0 ? (
+            <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>No workstations registered.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: '10px' }}>
+              {devices.map(d => (
+                <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>{d.code} · {d.name}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {d.branch_name || 'No branch'} · last updated {fmtDate(d.updated_at)}
+                    </div>
+                  </div>
+                  <StatusBadge variant={d.is_active ? 'green' : 'muted'}>{d.is_active ? 'Active' : 'Inactive'}</StatusBadge>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px', color: 'var(--text-primary)' }}>
+            Cloud Sync Devices ({syncDevices.length})
+          </h2>
+          {syncDevices.length === 0 ? (
+            <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>No devices have synced to the cloud yet.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: '10px' }}>
+              {syncDevices.map(d => (
+                <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>{d.label || d.device_id.slice(0, 12) + '…'}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>last synced {fmtDate(d.last_seen_at)}</div>
+                  </div>
+                  <StatusBadge variant={d.revoked_at ? 'red' : 'green'}>{d.revoked_at ? 'Revoked' : 'Active'}</StatusBadge>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Staff Shift Sessions */}
+      <div className="card">
+        <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '4px', color: 'var(--text-primary)' }}>
+          Recent Staff Shifts ({shifts.length})
+        </h2>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+          Cash-drawer clock-in/clock-out sessions — the closest thing to a "staff login" this app tracks.
+        </p>
+        {shifts.length === 0 ? (
+          <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>No shift sessions recorded yet.</div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {['Cashier', 'Start', 'End', 'Variance', ''].map(h => (
+                  <th key={h} style={{ textAlign: 'left', padding: '8px', fontSize: '11px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {shifts.map(s => (
+                <tr key={s.id}>
+                  <td style={{ padding: '8px', fontSize: '13px', borderBottom: '1px solid var(--border)' }}>{s.cashier?.full_name || '—'}</td>
+                  <td style={{ padding: '8px', fontSize: '13px', borderBottom: '1px solid var(--border)' }}>{fmtDate(s.shift_start)}</td>
+                  <td style={{ padding: '8px', fontSize: '13px', borderBottom: '1px solid var(--border)' }}>{s.shift_end ? fmtDate(s.shift_end) : <StatusBadge variant="cyan">Open</StatusBadge>}</td>
+                  <td style={{ padding: '8px', fontSize: '13px', borderBottom: '1px solid var(--border)' }}>
+                    {s.variance_sen != null ? `${business.currency} ${(s.variance_sen / 100).toFixed(2)}` : '—'}
+                  </td>
+                  <td style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>
+                    {s.flagged && <StatusBadge variant="amber">Flagged</StatusBadge>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   )
