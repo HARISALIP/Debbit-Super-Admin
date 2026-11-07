@@ -9,7 +9,7 @@ import { billingStyles as s } from '../Billing/Billing.styles'
 
 type Row = ProShopRow & { people_enabled: number | null; ai_questions: number | null; sales_7: number | null; waiting: number | null; last_sale: string | null; paid: PaidState | null }
 
-// Debbit Pro shops: one ERPNext site each, read through the Pro gateway. Counts, dates and statuses only; nothing here changes a shop.
+// debbit Pro shops: one ERPNext site each, read through the Pro gateway. Counts, dates and statuses only; nothing here changes a shop.
 export default function ProShops() {
   const navigate = useNavigate()
   const [rows, setRows] = useState<Row[]>([])
@@ -73,7 +73,7 @@ export default function ProShops() {
     <div className="fade-in">
       <div style={s.headerRow}>
         <div>
-          <h1 style={s.title}>Debbit Pro shops</h1>
+          <h1 style={s.title}>debbit Pro shops</h1>
           <p style={s.subtitle}>Every Pro shop, whether it has paid, its people, AI use and server health. Shop figures are counts, not records.</p>
         </div>
         <button className="btn btn-primary" onClick={() => void load()}>🔄 Refresh</button>
