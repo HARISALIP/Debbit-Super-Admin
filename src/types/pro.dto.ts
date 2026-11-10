@@ -103,3 +103,46 @@ export interface ProPayment {
   recorded_by: string
   created_at: string
 }
+
+// What debbit itself knows about a Pro customer, kept in Supabase only (admin-pro-crm, migration 20261107180000).
+export type ProStage = 'trial' | 'onboarding' | 'live' | 'paused' | 'left'
+export type ProAiConsent = 'not_asked' | 'asked' | 'agreed' | 'refused'
+export type ProNoteKind = 'note' | 'call' | 'visit' | 'email' | 'issue' | 'training'
+
+export interface ProCustomer {
+  shop_id: string
+  business_name: string | null
+  owner_name: string | null
+  owner_email: string | null
+  owner_phone: string | null
+  country: string | null
+  city: string | null
+  industry: string | null
+  stage: ProStage
+  tags: string[]
+  account_manager: string | null
+  started_on: string | null
+  ai_consent: ProAiConsent
+  ai_consent_on: string | null
+  updated_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ProNote {
+  id: string
+  shop_id: string
+  kind: ProNoteKind
+  body: string
+  created_by: string
+  created_at: string
+}
+
+export interface SuperAdminLogEntry {
+  id: number
+  at: string
+  admin_email: string
+  action: string
+  target: string | null
+  detail: Record<string, unknown>
+}

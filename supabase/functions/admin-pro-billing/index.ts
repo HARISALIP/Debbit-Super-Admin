@@ -41,6 +41,13 @@ const currency = (v: unknown, required = false): string | null => {
 }
 // PostgREST says a table or function is missing with these codes; anything else is a real failure.
 const missing = (e: { code?: string } | null) => !!e && ['42P01', 'PGRST205', 'PGRST202', '42883'].includes(e.code ?? '')
+// The Super Admin change log (migration 20261107180000). Until that migration is applied the entry goes to the function log only,
+// so recording a payment never fails because of the log.
+// deno-lint-ignore no-explicit-any
+async function adminLog(supabase: any, email: string, action: string, target: string, detail: Record<string, unknown>) {
+  const { error } = await supabase.from('super_admin_log').insert({ admin_email: email, action, target, detail })
+  if (error) console.error(JSON.stringify({ event: 'super_admin_log_failed', action, target, code: error.code }))
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
@@ -94,6 +101,7 @@ Deno.serve(async (req: Request) => {
       if (missing(error)) return json({ ok: false, notReady: true, error: NOT_READY })
       if (error) throw error
       console.log(JSON.stringify({ event: 'pro_subscription_saved', shop: id, by: email }))
+      await adminLog(supabase, email, 'subscription_saved', id, { plan: row.plan, paid_until: row.paid_until, trial_ends: row.trial_ends })
       return json({ ok: true, subscription: data })
     }
 
@@ -113,6 +121,7 @@ Deno.serve(async (req: Request) => {
       if (error?.code === 'P0001') return json({ ok: false, error: error.message }, 400)
       if (error) throw error
       console.log(JSON.stringify({ event: 'pro_payment_recorded', shop: id, by: email }))
+      await adminLog(supabase, email, 'payment_recorded', id, { amount, currency: body.currency, covers_until: coversUntil })
       return json({ ok: true, subscription: data })
     }
 
