@@ -14,6 +14,10 @@ interface AuthContextValue {
   checking: boolean
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
+  /** True after a "set a new password" email link was opened: the app shows the new-password form instead of the pages. */
+  recovering: boolean
+  sendReset: (email: string) => Promise<void>
+  setNewPassword: (password: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -22,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession]           = useState<Session | null | undefined>(undefined)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [checking, setChecking]         = useState(true)
+  const [recovering, setRecovering]     = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('reset'))
 
   useEffect(() => {
     if (isMissingConfig) {
@@ -46,7 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setChecking(false)
       })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true)
       setSession(session)
       if (session?.user?.email) {
         void checkSuperAdmin(session.user.email)
@@ -96,8 +102,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsSuperAdmin(false)
   }
 
+  // The email link comes back to the site's front page with ?reset (any deep link may not be served), signed in for this one purpose.
+  async function sendReset(email: string): Promise<void> {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/?reset=1` })
+    if (error) throw error
+  }
+
+  async function setNewPassword(password: string): Promise<void> {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+    setRecovering(false)
+    window.history.replaceState(null, '', '/')
+  }
+
   return (
-    <AuthContext.Provider value={{ session, isSuperAdmin, checking, signIn, signOut }}>
+    <AuthContext.Provider value={{ session, isSuperAdmin, checking, signIn, signOut, recovering, sendReset, setNewPassword }}>
       {children}
     </AuthContext.Provider>
   )
