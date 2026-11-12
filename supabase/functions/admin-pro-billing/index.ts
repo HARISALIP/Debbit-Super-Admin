@@ -15,7 +15,7 @@ const SHOP_ID = /^[a-z0-9][a-z0-9-]{0,62}$/
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 const CURRENCY = /^[A-Za-z]{3}$/
 const METHODS = ['cash', 'mobile_money', 'bank_transfer', 'card', 'other']
-const NOT_READY = 'The Pro payments tables are not in the database yet. Apply migration 095_pro_subscriptions.sql first.'
+const NOT_READY = 'The Pro payments tables are not in the database yet. Apply migration 20261112090000_standalone_base.sql (or monorepo 095) first.'
 
 class Bad extends Error {}
 const text = (v: unknown, max: number, what: string): string | null => {
