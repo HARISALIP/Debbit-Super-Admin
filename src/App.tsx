@@ -1,5 +1,5 @@
 import React, { Component, ReactNode } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import { isMissingConfig, envUrl, envAnonKey } from './lib/supabase'
 
@@ -18,7 +18,12 @@ import SyncHealth from './pages/SyncHealth/SyncHealth'
 import Billing from './pages/Billing/Billing'
 import ProShops from './pages/ProShops/ProShops'
 import ProShopDetail from './pages/ProShopDetail/ProShopDetail'
-import OldOsOnly from './components/molecules/OldOsNotice'
+import OldOsOr from './components/molecules/OldOsNotice'
+import ProBusinesses from './pages/ProViews/ProBusinesses'
+import ProUsers from './pages/ProViews/ProUsers'
+import ProUsage from './pages/ProViews/ProUsage'
+import ProSiteHealth from './pages/ProViews/ProSiteHealth'
+import ProBillingAll from './pages/ProViews/ProBillingAll'
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 
@@ -51,6 +56,12 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 }
 
 // ─── Missing Config Banner ───────────────────────────────────────────────────
+
+// An old /businesses/:id link opens that Pro shop's page.
+function ToProShop() {
+  const { id } = useParams()
+  return <Navigate to={`/pro/${id ?? ''}`} replace />
+}
 
 function MissingConfigBanner() {
   const currentUrl = envUrl || 'https://your-project.supabase.co'
@@ -95,12 +106,12 @@ function ProtectedLayout() {
     <MainLayout>
       <Routes>
         <Route path="/"               element={<Dashboard />} />
-        <Route path="/businesses"     element={<OldOsOnly title="Businesses"><Businesses /></OldOsOnly>} />
-        <Route path="/businesses/:id" element={<OldOsOnly title="Business"><BusinessDetail /></OldOsOnly>} />
-        <Route path="/users"          element={<OldOsOnly title="Users"><Users /></OldOsOnly>} />
-        <Route path="/telemetry"      element={<OldOsOnly title="Telemetry"><Telemetry /></OldOsOnly>} />
-        <Route path="/sync"           element={<OldOsOnly title="Sync health"><SyncHealth /></OldOsOnly>} />
-        <Route path="/billing"        element={<OldOsOnly title="Billing"><Billing /></OldOsOnly>} />
+        <Route path="/businesses"     element={<OldOsOr pro={<ProBusinesses />}><Businesses /></OldOsOr>} />
+        <Route path="/businesses/:id" element={<OldOsOr pro={<ToProShop />}><BusinessDetail /></OldOsOr>} />
+        <Route path="/users"          element={<OldOsOr pro={<ProUsers />}><Users /></OldOsOr>} />
+        <Route path="/telemetry"      element={<OldOsOr pro={<ProUsage />}><Telemetry /></OldOsOr>} />
+        <Route path="/sync"           element={<OldOsOr pro={<ProSiteHealth />}><SyncHealth /></OldOsOr>} />
+        <Route path="/billing"        element={<OldOsOr pro={<ProBillingAll />}><Billing /></OldOsOr>} />
         <Route path="/pro"            element={<ProShops />} />
         <Route path="/pro/:id"        element={<ProShopDetail />} />
         <Route path="*"               element={<Navigate to="/" replace />} />
