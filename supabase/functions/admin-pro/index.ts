@@ -6,6 +6,7 @@
 // The gateway key (PRO_ADMIN_KEY) lives only in this function's secrets: the browser never sees it. Without PRO_GATEWAY_URL and
 // PRO_ADMIN_KEY it answers that Pro is not connected. It only reads; nothing here changes a Pro shop.
 //
+// Failures carry step: 'secrets' | 'unreachable' | 'gateway_off' | 'key', so the Connection card can say which switch is missing.
 // Body: {op:'shops'} | {op:'shop', id:'<registry id>'} | {op:'health'} | {op:'trend', id}
 //
 // Each successful 'shops' read also saves that day's headline counts per shop in pro_snapshots (Supabase only, migration
@@ -32,7 +33,7 @@ Deno.serve(async (req: Request) => {
   const key = (Deno.env.get('PRO_ADMIN_KEY') ?? '').trim()
   // HTTPS only; plain http only to this machine, for local testing.
   if (!/^(https:\/\/[A-Za-z0-9.-]+|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/.test(base) || key.length < 32) {
-    return json({ ok: false, notConnected: true, error: 'debbit Pro is not connected yet. Set PRO_GATEWAY_URL and PRO_ADMIN_KEY in this project\'s Edge Function secrets.' }, 200)
+    return json({ ok: false, notConnected: true, step: 'secrets', error: 'debbit Pro is not connected yet. Set PRO_GATEWAY_URL and PRO_ADMIN_KEY in this project\'s Edge Function secrets.' }, 200)
   }
 
   const body = await req.json().catch(() => ({}))
@@ -59,12 +60,12 @@ Deno.serve(async (req: Request) => {
       signal: AbortSignal.timeout(25000),
     })
   } catch {
-    return json({ ok: false, error: 'The Pro gateway did not answer. It may be starting up; try again in a minute.' }, 502)
+    return json({ ok: false, step: 'unreachable', error: 'The Pro gateway did not answer. It may be starting up; try again in a minute.' }, 502)
   }
   const data = await response.json().catch(() => null)
   if (response.status === 404 && op === 'shop') return json({ ok: false, error: 'No such Pro shop.' }, 404)
-  if (response.status === 401) return json({ ok: false, error: 'The Pro gateway refused the admin key. Check PRO_ADMIN_KEY matches DEBBIT_ADMIN_KEY on the gateway.' }, 502)
-  if (response.status === 404) return json({ ok: false, notConnected: true, error: 'The Pro gateway has no admin read API yet. Set DEBBIT_ADMIN_KEY on the gateway.' }, 200)
+  if (response.status === 401) return json({ ok: false, step: 'key', error: 'The Pro gateway refused the admin key. Check PRO_ADMIN_KEY matches DEBBIT_ADMIN_KEY on the gateway.' }, 502)
+  if (response.status === 404) return json({ ok: false, notConnected: true, step: 'gateway_off', error: 'The Pro gateway has no admin read API yet. Set DEBBIT_ADMIN_KEY on the gateway.' }, 200)
   if (!response.ok || !data || typeof data !== 'object') return json({ ok: false, error: `The Pro gateway answered ${response.status}.` }, 502)
   if (op === 'shops' && Array.isArray(data.shops)) await snapshot(supabase, data.shops)
   return json({ ok: true, ...data })

@@ -1,12 +1,19 @@
 import { supabase } from './supabase'
 
 // Every Pro read goes through the admin-pro Edge Function, which checks super_admins and holds the Pro gateway key.
-export type ProResult<T> = { ok: true; data: T } | { ok: false; error: string; notConnected?: boolean }
+export type ProStep = 'secrets' | 'unreachable' | 'gateway_off' | 'key'
+export type ProResult<T> = { ok: true; data: T } | { ok: false; error: string; notConnected?: boolean; step?: ProStep }
 
 export async function callPro<T>(op: 'shops' | 'shop' | 'health' | 'trend', id?: string): Promise<ProResult<T>> {
   try {
-    const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string; notConnected?: boolean } & T>('admin-pro', { body: { op, id } })
-    if (error || !data?.ok) return { ok: false, error: data?.error || error?.message || 'Could not reach debbit Pro', notConnected: !!data?.notConnected }
+    const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string; notConnected?: boolean; step?: ProStep } & T>('admin-pro', { body: { op, id } })
+    if (error || !data?.ok) {
+      // A non-2xx answer (gateway refused the key, did not answer) carries its sentence in the body; supabase-js puts the response on error.context.
+      let body: { error?: string; notConnected?: boolean; step?: ProStep } | null | undefined = data
+      const ctx = (error as { context?: Response } | null)?.context
+      if (!body?.error && ctx && typeof ctx.json === 'function') body = await ctx.json().catch(() => null)
+      return { ok: false, error: body?.error || error?.message || 'Could not reach debbit Pro', notConnected: !!body?.notConnected, step: body?.step }
+    }
     return { ok: true, data: data as T }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Could not reach debbit Pro' }

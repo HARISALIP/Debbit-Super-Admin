@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import DataTable from '../../components/organisms/DataTable/DataTable'
 import StatCard from '../../components/molecules/StatCard'
 import StatusBadge from '../../components/atoms/StatusBadge'
+import ProConnection from '../../components/molecules/ProConnection'
 import { ColumnDef, ProCustomer, ProHealth, ProShopRow, ProSubscription } from '../../types'
-import { PROBLEM_TEXT, PaidState, STAGE_TEXT, ago, callPro, callProBilling, callProCrm, fmt, paidState } from '../../lib/pro'
+import { PROBLEM_TEXT, PaidState, ProResult, STAGE_TEXT, ago, callPro, callProBilling, callProCrm, fmt, paidState } from '../../lib/pro'
 import { Attention, attentionFor } from '../../lib/proAttention'
 import { billingStyles as s } from '../Billing/Billing.styles'
 
@@ -18,6 +19,7 @@ export default function ProShops() {
   const navigate = useNavigate()
   const [rows, setRows] = useState<Row[]>([])
   const [health, setHealth] = useState<ProHealth | null>(null)
+  const [link, setLink] = useState<ProResult<ProHealth> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notConnected, setNotConnected] = useState(false)
@@ -53,7 +55,7 @@ export default function ProShops() {
         country: cards.get(r.id)?.country ?? r.figures?.businesses[0]?.country ?? '',
       })))
     }
-    setHealth(h.ok ? h.data : null)
+    setHealth(h.ok ? h.data : null); setLink(h)
     setLoading(false)
   }, [])
 
@@ -99,7 +101,9 @@ export default function ProShops() {
         <button className="btn btn-primary" onClick={() => void load()}>🔄 Refresh</button>
       </div>
 
-      {error && <div className="card" style={{ marginBottom: 20, borderLeft: `4px solid ${notConnected ? 'var(--amber, #d97706)' : 'var(--red)'}`, fontSize: 13 }}>{notConnected ? 'ℹ️' : '⚠️'} {error}</div>}
+      <ProConnection result={link} />
+
+      {error && !notConnected && !(link && !link.ok && link.step) && <div className="card" style={{ marginBottom: 20, borderLeft: `4px solid ${notConnected ? 'var(--amber, #d97706)' : 'var(--red)'}`, fontSize: 13 }}>{notConnected ? 'ℹ️' : '⚠️'} {error}</div>}
 
       {billingNote && <div className="card" style={{ marginBottom: 20, borderLeft: '4px solid var(--amber, #d97706)', fontSize: 13 }}>ℹ️ Paid or not: {billingNote}</div>}
 
