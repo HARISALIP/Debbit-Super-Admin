@@ -5,6 +5,7 @@ import DataTable from '../../components/organisms/DataTable/DataTable'
 import StatCard from '../../components/molecules/StatCard'
 import StatusBadge from '../../components/atoms/StatusBadge'
 import { ColumnDef, ProCustomer, ProPerson, ProRecentDoc, ProShopDetail as Detail, ProSnapshot, ProSubscription, SuperAdminLogEntry } from '../../types'
+import AiWorkCard from '../../components/molecules/AiWorkCard'
 import { CONSENT_TEXT, PROBLEM_TEXT, ago, callPro, callProBilling, callProCrm, estimateUsd, fmt } from '../../lib/pro'
 import { attentionFor } from '../../lib/proAttention'
 import { billingStyles as s } from '../Billing/Billing.styles'
@@ -52,11 +53,12 @@ export default function ProShopDetail() {
   useEffect(() => { void load() }, [load])
 
   const months = useMemo(() => {
-    const by: Record<string, { month: string; questions: number; tokens: number; usd: number }> = {}
+    const by: Record<string, { month: string; questions: number; calls: number; tokens: number; usd: number }> = {}
     for (const r of d?.ai_usage ?? []) {
-      const m = (by[r.month] ??= { month: r.month, questions: 0, tokens: 0, usd: 0 })
+      const m = (by[r.month] ??= { month: r.month, questions: 0, calls: 0, tokens: 0, usd: 0 })
       if (r.task === 'questions') m.questions += r.calls
       else {
+        m.calls += r.calls
         m.tokens += r.input_tokens + r.output_tokens + r.cache_read_input_tokens + r.cache_creation_input_tokens
         m.usd += estimateUsd(r.model, r.input_tokens, r.output_tokens, r.cache_read_input_tokens, r.cache_creation_input_tokens) ?? 0
       }
@@ -209,23 +211,25 @@ export default function ProShopDetail() {
             <div key={who} style={{ padding: '3px 0' }}><b>{IDENTITY[who] ?? who}</b><div style={{ color: 'var(--text-muted)' }}>{caps.join(', ') || '—'}</div></div>
           )) : muted('Nothing ticked: every AI job is off.')) : muted(f ? OLDER : '—'))}
         </div>
+        <AiWorkCard work={d?.ai_work} />
         <div className="card" style={{ marginBottom: 24 }}>
           <div style={{ fontWeight: 800, marginBottom: 4 }}>AI use by month</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Questions counted toward the monthly allowance. Cost is an estimate from token counts at list prices.</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>AI calls are every AI job (questions, drafts, suggestions, reading documents, agent jobs); questions are the ones counted toward the monthly allowance. Cost is an estimate from token counts at list prices.</div>
           {months.length ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={months}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="month" fontSize={12} />
                 <YAxis allowDecimals={false} fontSize={12} />
-                <Tooltip formatter={(v: number, n: string) => n === 'questions' ? [v, 'Questions'] : [v, n]} />
+                <Tooltip formatter={(v: number, n: string) => n === 'questions' ? [v, 'Questions'] : n === 'calls' ? [v, 'AI calls (all jobs)'] : [v, n]} />
+                <Bar dataKey="calls" fill="var(--green)" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="questions" fill="var(--purple-main)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : muted(loading ? 'Loading…' : 'No AI use recorded yet.')}
           {months.length > 0 && (
             <table style={{ width: '100%', fontSize: 13, marginTop: 12 }}><tbody>
-              {months.slice().reverse().map(m => <tr key={m.month}><td>{m.month}</td><td style={{ textAlign: 'right' }}>{fmt(m.questions)} questions</td><td style={{ textAlign: 'right' }}>{fmt(m.tokens)} tokens</td><td style={{ textAlign: 'right' }}>≈ ${m.usd.toFixed(2)}</td></tr>)}
+              {months.slice().reverse().map(m => <tr key={m.month}><td>{m.month}</td><td style={{ textAlign: 'right' }}>{fmt(m.calls)} AI calls</td><td style={{ textAlign: 'right' }}>{fmt(m.questions)} questions</td><td style={{ textAlign: 'right' }}>{fmt(m.tokens)} tokens</td><td style={{ textAlign: 'right' }}>≈ ${m.usd.toFixed(2)}</td></tr>)}
             </tbody></table>
           )}
           {thisMonthTasks.length > 0 && (
