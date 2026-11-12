@@ -65,3 +65,8 @@ Payments and plan changes in `admin-pro-billing` are written to the same log.
 
 **The separation rule:** Super Admin's backend is Supabase only. It never connects to a shop's ERPNext database, the VPS or Render, and
 it never changes a shop. Its only link to Pro is the gateway's read-only admin feed.
+
+### Trends
+
+Opening the Pro customers list saves that day's headline counts for each shop once in `pro_snapshots` (migration
+`20261107190000_pro_snapshots.sql`, counts only). Nothing polls the shops. The customer page draws 90-day lines from these rows.

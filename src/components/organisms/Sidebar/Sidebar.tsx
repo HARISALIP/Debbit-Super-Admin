@@ -19,7 +19,7 @@ const NAV: NavItem[] = [
   { to: '/telemetry',   label: 'Telemetry',   subtitle: 'Error & crash logs',    icon: '📡' },
   { to: '/sync',        label: 'Sync Health', subtitle: 'Workstations & POS',   icon: '🔄' },
   { to: '/billing',     label: 'Billing',     subtitle: 'Subscriptions & MRR',  icon: '💳' },
-  { to: '/pro',         label: 'Pro shops',   subtitle: 'debbit Pro (ERPNext)', icon: '🏪' },
+  { to: '/pro',         label: 'Pro customers', subtitle: 'debbit Pro (ERPNext)', icon: '🏪' },
 ]
 
 export default function Sidebar() {
