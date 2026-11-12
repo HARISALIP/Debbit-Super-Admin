@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import { sidebarStyles } from './Sidebar.styles'
+import { oldOsConnected } from '../../molecules/OldOsNotice'
 
 interface NavItem {
   to: string
@@ -22,6 +23,10 @@ const NAV: NavItem[] = [
   { to: '/pro',         label: 'Pro customers', subtitle: 'debbit Pro (ERPNext)', icon: '🏪' },
 ]
 
+// With the old debbit OS pages off, these menus show debbit Pro (pages/ProViews), so their subtitles say so and the OS counts are skipped.
+const PRO_SUBTITLE: Record<string, string> = { '/businesses': 'Pro businesses', '/users': 'People in Pro shops', '/telemetry': 'Usage and AI work',
+  '/sync': 'Site health and backups', '/billing': 'Paid or not' }
+
 export default function Sidebar() {
   const [businessCount, setBusinessCount] = useState<number | null>(null)
   const [userCount, setUserCount] = useState<number | null>(null)
@@ -39,10 +44,11 @@ export default function Sidebar() {
         setUserCount(userRes.count)
       }
     }
-    fetchCounts()
+    if (oldOsConnected) fetchCounts()
   }, [])
 
   const navWithBadges = NAV.map(item => {
+    if (!oldOsConnected) return PRO_SUBTITLE[item.to] ? { ...item, subtitle: PRO_SUBTITLE[item.to] } : item
     if (item.to === '/businesses') {
       return { ...item, badge: businessCount !== null ? `${businessCount} active` : '…' }
     }
