@@ -6,7 +6,7 @@ import {
   ReactNode,
 } from 'react'
 import { Session } from '@supabase/supabase-js'
-import { supabase, isMissingConfig } from '../lib/supabase'
+import { supabase, isMissingConfig, openedFromResetLink, resetLinkError } from '../lib/supabase'
 
 interface AuthContextValue {
   session: Session | null | undefined
@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession]           = useState<Session | null | undefined>(undefined)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [checking, setChecking]         = useState(true)
-  const [recovering, setRecovering]     = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('reset'))
+  const [recovering, setRecovering]     = useState(() => openedFromResetLink || !!resetLinkError)
 
   useEffect(() => {
     if (isMissingConfig) {

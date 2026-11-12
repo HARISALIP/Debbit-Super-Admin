@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import DebbitLogo from '../../components/atoms/DebbitLogo'
 import { loginStyles } from './Login.styles'
+import { resetLinkError } from '../../lib/supabase'
 
 // Shown after the "set a new password" email link is opened. Supabase has signed the person in for this purpose only.
 export default function ResetPassword() {
@@ -28,7 +29,7 @@ export default function ResetPassword() {
         <h1 style={loginStyles.heading}>Set a new password</h1>
         {checking && session === undefined ? <div className="spinner" /> : !session ? (
           <>
-            <p style={loginStyles.subheading}>This link has expired or was already used. Go back and ask for a new one.</p>
+            <p style={loginStyles.subheading}>This link has expired or was already used. Go back and ask for a new one.{resetLinkError ? ` (${resetLinkError})` : ''}</p>
             <a className="btn btn-primary" style={loginStyles.submitBtn} href="/">Back to sign in</a>
           </>
         ) : (

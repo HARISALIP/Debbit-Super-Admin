@@ -36,4 +36,15 @@ export const envAnonKey = JWT_RE.test(configuredKey.trim()) ? configuredKey.trim
 // is now only true if someone deliberately blanks them in code.
 export const isMissingConfig = !envUrl || !envAnonKey
 
+// Read the reset-password link before the client starts: supabase-js signs in from the URL and then clears it, and it can
+// announce PASSWORD_RECOVERY before the app has subscribed. type=recovery in the hash (or ?reset from our own link) means
+// the person came to set a new password; an error in the hash means the link was expired or already used.
+const startHash = typeof window !== 'undefined' ? new URLSearchParams(window.location.hash.replace(/^#/, '')) : new URLSearchParams()
+const startQuery = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
+export const openedFromResetLink = startHash.get('type') === 'recovery' || startQuery.has('reset') || startQuery.get('type') === 'recovery'
+const linkErrorCode = startHash.get('error_code') || startQuery.get('error_code')
+export const resetLinkError: string | null = linkErrorCode
+  ? (startHash.get('error_description') || startQuery.get('error_description') || linkErrorCode).replace(/\+/g, ' ')
+  : null
+
 export const supabase: SupabaseClient = createClient(envUrl, envAnonKey)
