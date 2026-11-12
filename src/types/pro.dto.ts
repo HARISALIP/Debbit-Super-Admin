@@ -92,9 +92,20 @@ export interface ProAiUsageRow extends ProTokens {
   calls: number
 }
 
+// What debbit's AI team did this month (gateway ai_work, debbitOG #243). Counts only. Missing or null on sites without that update.
+export interface ProAiWork {
+  month: string
+  workers: Record<string, Record<string, number>>
+  last_action_at: string | null
+  jobs: Record<string, { statuses: Record<string, number>; cost_usd: number; steps: number }>
+  waiting_approval: number
+  approvals: { given: number; used: number }
+}
+
 export interface ProShopDetail extends ProShopRow {
   people: ProPerson[] | null
   ai_usage: ProAiUsageRow[] | null
+  ai_work?: ProAiWork | null
   recent?: ProRecentDoc[] | null
 }
 
