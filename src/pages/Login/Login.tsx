@@ -4,7 +4,9 @@ import DebbitLogo from '../../components/atoms/DebbitLogo'
 import { loginStyles } from './Login.styles'
 
 export default function Login() {
-  const { signIn } = useAuth()
+  const { signIn, sendReset } = useAuth()
+  const [forgot, setForgot]     = useState(false)
+  const [sent, setSent]         = useState(false)
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState<string | null>(null)
@@ -15,6 +17,12 @@ export default function Login() {
     setError(null)
     setLoading(true)
     try {
+      if (forgot) {
+        await sendReset(email)
+        // Same answer whether or not the address has an account, so the form does not reveal who is an admin.
+        setSent(true)
+        return
+      }
       await signIn(email, password)
     } catch (err: any) {
       let msg = 'Sign-in failed'
@@ -42,8 +50,10 @@ export default function Login() {
           <DebbitLogo size="lg" badgeText="SUPER ADMIN PORTAL" showBadge={true} />
         </div>
 
-        <h1 style={loginStyles.heading}>Welcome Back</h1>
-        <p style={loginStyles.subheading}>Sign in with your platform super-admin credentials.</p>
+        <h1 style={loginStyles.heading}>{forgot ? 'Reset your password' : 'Welcome Back'}</h1>
+        <p style={loginStyles.subheading}>{forgot ? 'Type your email. We send a link to set a new password.' : 'Sign in with your platform super-admin credentials.'}</p>
+
+        {sent && <div className="alert" style={{ marginBottom: 16, fontSize: 13 }}>If that email has a Super Admin account, a link is on its way. Open it on this computer within one hour.</div>}
 
         {error && <div className="alert alert-error">{error}</div>}
 
@@ -62,6 +72,7 @@ export default function Login() {
             />
           </div>
 
+          {!forgot && (
           <div style={loginStyles.formGroup}>
             <label style={loginStyles.label} htmlFor="password">Password</label>
             <input
@@ -75,6 +86,7 @@ export default function Login() {
               required
             />
           </div>
+          )}
 
           <button
             type="submit"
@@ -82,9 +94,14 @@ export default function Login() {
             style={loginStyles.submitBtn}
             disabled={loading}
           >
-            {loading ? <span className="spinner" style={{ width: '18px', height: '18px', borderWidth: '2px' }} /> : 'Sign In →'}
+            {loading ? <span className="spinner" style={{ width: '18px', height: '18px', borderWidth: '2px' }} /> : forgot ? 'Send the link' : 'Sign In →'}
           </button>
         </form>
+
+        <button type="button" className="btn" style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--purple-main)', fontSize: 13, cursor: 'pointer' }}
+          onClick={() => { setForgot(!forgot); setSent(false); setError(null) }}>
+          {forgot ? '← Back to sign in' : 'Forgot password?'}
+        </button>
 
         <p style={loginStyles.footnote}>
           Restricted to authorized debbit OS platform administrators.

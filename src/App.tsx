@@ -8,6 +8,7 @@ import MainLayout from './components/templates/MainLayout/MainLayout'
 
 // Pages
 import Login from './pages/Login/Login'
+import ResetPassword from './pages/Login/ResetPassword'
 import Dashboard from './pages/Dashboard/Dashboard'
 import Businesses from './pages/Businesses/Businesses'
 import BusinessDetail from './pages/BusinessDetail/BusinessDetail'
@@ -110,9 +111,10 @@ function ProtectedLayout() {
 // ─── Root App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { session, isSuperAdmin, checking } = useAuth()
+  const { session, isSuperAdmin, checking, recovering } = useAuth()
 
   if (isMissingConfig) return <MissingConfigBanner />
+  if (recovering) return <ResetPassword />
 
   return (
     <ErrorBoundary>
