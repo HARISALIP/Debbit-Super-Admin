@@ -18,7 +18,7 @@ export function connectionChecks(r: ProResult<ProHealth> | null): Check[] {
     { label: 'The two keys match', state: at(3), fix: 'PRO_ADMIN_KEY in Supabase must be exactly the same as DEBBIT_ADMIN_KEY on Render.' },
     { label: sites.length ? `Every shop can be read (${sites.length - noReader.length} of ${sites.length})` : 'Every shop can be read',
       state: !r?.ok ? 'unknown' : noReader.length ? 'missing' : 'ok',
-      fix: noReader.length ? noReader.map(x => `${x.id}: ${PROBLEM_TEXT[x.problem ?? ''] ?? 'not readable'}`).join(' · ') + '. Make the admin reader on that site and add its keys on Render.' : '' },
+      fix: noReader.length ? noReader.map(x => `${x.id}: ${PROBLEM_TEXT[x.problem ?? ''] ?? 'not readable'}`).join(' · ') + '. On the VPS run bash infra/vps/update.sh: it makes the reader on every site by itself.' : '' },
   ]
 }
 

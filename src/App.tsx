@@ -18,6 +18,7 @@ import SyncHealth from './pages/SyncHealth/SyncHealth'
 import Billing from './pages/Billing/Billing'
 import ProShops from './pages/ProShops/ProShops'
 import ProShopDetail from './pages/ProShopDetail/ProShopDetail'
+import OldOsOnly from './components/molecules/OldOsNotice'
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 
@@ -94,12 +95,12 @@ function ProtectedLayout() {
     <MainLayout>
       <Routes>
         <Route path="/"               element={<Dashboard />} />
-        <Route path="/businesses"     element={<Businesses />} />
-        <Route path="/businesses/:id" element={<BusinessDetail />} />
-        <Route path="/users"          element={<Users />} />
-        <Route path="/telemetry"      element={<Telemetry />} />
-        <Route path="/sync"           element={<SyncHealth />} />
-        <Route path="/billing"        element={<Billing />} />
+        <Route path="/businesses"     element={<OldOsOnly title="Businesses"><Businesses /></OldOsOnly>} />
+        <Route path="/businesses/:id" element={<OldOsOnly title="Business"><BusinessDetail /></OldOsOnly>} />
+        <Route path="/users"          element={<OldOsOnly title="Users"><Users /></OldOsOnly>} />
+        <Route path="/telemetry"      element={<OldOsOnly title="Telemetry"><Telemetry /></OldOsOnly>} />
+        <Route path="/sync"           element={<OldOsOnly title="Sync health"><SyncHealth /></OldOsOnly>} />
+        <Route path="/billing"        element={<OldOsOnly title="Billing"><Billing /></OldOsOnly>} />
         <Route path="/pro"            element={<ProShops />} />
         <Route path="/pro/:id"        element={<ProShopDetail />} />
         <Route path="*"               element={<Navigate to="/" replace />} />
